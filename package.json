@@ -1,0 +1,41 @@
+{
+  "name": "chalofir",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon Backend/index.js",
+    "build": "npm install && cd Frontend && npm install && npm run build",
+    "start": "NODE_ENV=production node Backend/index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@openrouter/sdk": "^0.12.1",
+    "@radix-ui/react-icons": "^1.3.2",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
+    "clsx": "^2.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "framer-motion": "^12.38.0",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "mailtrap": "^4.5.1",
+    "mongoose": "^9.3.3",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.13",
+    "pdf-parse": "^1.1.1",
+    "react-hot-toast": "^2.6.0",
+    "resend": "^6.9.4",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

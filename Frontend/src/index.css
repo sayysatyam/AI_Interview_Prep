@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* globals.css or your stylesheet */
+.btn-sweep {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+  transition: color 0.3s ease;
+}
+
+.btn-sweep::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #1e3a1f;
+  border-radius: 9999px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.65, 0, 0.35, 1);
+  z-index: -1;
+}
+
+.btn-sweep:hover { color: #fff; }
+.btn-sweep:hover::before { transform: scaleX(1); }
+html {
+  scroll-behavior: smooth;
+}
