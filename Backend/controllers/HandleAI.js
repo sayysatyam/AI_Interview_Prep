@@ -1,18 +1,21 @@
-const dotenv = require('dotenv')
+const dotenv = require("dotenv");
 require("dotenv").config();
-const extractTextFromPDF = require('../MiddleWare/extractText')
+
+const extractTextFromPDF = require("../MiddleWare/extractText");
+const userDetails = require("../models/auth");
+const InterviewDetails = require("../models/interviewModel");
 const axios = require("axios");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const userDetails = require('../models/auth');
-const InterviewDetails = require('../models/interviewModel');
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_AI_KEY);
+const OPENROUTER_HEADERS = {
+  Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+  "Content-Type": "application/json",
+};
 
 const aiResumeAnalyzer = async (resumeText) => {
   try {
     if (!resumeText || resumeText.trim().length === 0) {
-  throw new Error("resumeText is empty or undefined");
-};
-   
+      throw new Error("resumeText is empty or undefined");
+    }
+
     const prompt = `
 You are an expert AI Resume Analyzer.
 
@@ -40,43 +43,31 @@ JSON format:
     "project 2 with (short description - 5 to 7 words)"
   ],
   "skills": {
-    "technical": ["skill1", "skill2"],
-    "soft": ["skill1", "skill2"]
+    "technical": ["skill1", "skill2", etc],
+    "soft": ["skill1", "skill2" ,"etc"]
   },
   "experience_analysis": "Evaluation of work experience",
   "projects_analysis": "Evaluation of projects",
   "ats_score": number,
   "experience_Gap" : number ,
-  "experience_fit" : "string"(Give in max 3 words and give fit in technical term like intern data analyst type),
-  "improvement_suggestions": [
+  "experience_fit" : "string"(Give in max 3 words and give fit in technical term like intern data analyst type and also in Capitalized format First word capital n rest small),
+  "improvement_suggestions": (give more than 2 if any i just show you an example ) [
     "suggestion 1",
     "suggestion 2"
   ]
 }
 `;
 
-const result = await axios.post(
-        process.env.GEMINI_API_URL,
-        {
-          contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": process.env.GEMINI_AI_KEY,
-          },
-          timeout: 40000,
-        },
-      );
+    const result = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+      },
+      { headers: OPENROUTER_HEADERS },
+    );
 
-
-    const text =
-      result.data.candidates[0].content.parts[0].text;
-
+    const text = result.data.choices[0].message.content;
 
     let parsed;
     try {
@@ -85,7 +76,6 @@ const result = await axios.post(
       return { error: "Invalid JSON from AI", raw: response };
     }
     return parsed;
-
   } catch (error) {
     console.error("AI Error:", error.message);
     throw new Error("Resume analysis failed");
@@ -97,7 +87,7 @@ const handleResumeUpload = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "No file uploaded"
+        message: "No file uploaded",
       });
     }
 
@@ -108,45 +98,58 @@ const handleResumeUpload = async (req, res) => {
 
     res.json({
       success: true,
-      Resumedata: analysis
+      Resumedata: analysis,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
 
-const generateQuestion = async(req,res)=>{
+const generateQuestion = async (req, res) => {
   try {
-    const {role,skills,experience,mode,resume,project,difficulty,quesNum} = req.body;
+    const {
+      role,
+      skills,
+      experience,
+      mode,
+      resume,
+      project,
+      difficulty,
+      quesNum,
+    } = req.body;
 
-    if(!role || ! experience || !mode ){
-      return res.status(400).send({success : false , msg :"Please fill up Details Properly"});
+    if (!role || !experience || !mode) {
+      return res
+        .status(400)
+        .send({ success: false, msg: "Please fill up Details Properly" });
     }
     const user = await userDetails.findById(req.userId);
-          if(!user){
-            return res.status(404).json({
-              success:false,msg:"User not found"
-            });
-          };
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
 
-          if(user.credits < 50){
-            return res.status(400).json({
-              success:false,
-              msg:"Minimum 50 credits are required"
-            });
-          }
+    if (user.credits < 50) {
+      return res.status(400).json({
+        success: false,
+        msg: "Minimum 50 credits are required",
+      });
+    }
 
-          const projectText = Array.isArray(project) && project.length ? project.join(", ") : "None";
+    const projectText =
+      Array.isArray(project) && project.length ? project.join(", ") : "None";
 
-          const userResumeText = resume?.trim()|| "None";
+    const userResumeText = resume?.trim() || "None";
 
-          const skillsText = Array.isArray(skills) && skills.length ? skills.join(", ") : "None";
+    const skillsText =
+      Array.isArray(skills) && skills.length ? skills.join(", ") : "None";
 
-         const quesPrompt = `
+    const quesPrompt = `
 You are an expert technical interviewer AI.
 
 Generate high-quality, realistic interview questions based on the following details:
@@ -173,7 +176,9 @@ Difficulty Level: ${difficulty}
 7. Mode handling:
    - HR → behavioral and situational questions
    - Technical → concepts, coding logic, real-world scenarios
-   - Mixed → combination of both
+   - Mixed → combination of both,
+   - Behaviour → situational or case based
+   - Case Based → Problem Solving acc to pRoject Cased
 
 8. Difficulty handling:
    - If a single difficulty is given (easy/medium/hard), use it for all questions.
@@ -198,6 +203,7 @@ Each object MUST follow this exact structure:
   "question": "string",
   "difficulty": "easy | medium | hard",
   "timeLimit": number,
+  "category":"String"
 }
 
 ---
@@ -212,170 +218,202 @@ Each object MUST follow this exact structure:
 - Ensure all fields are present in every object
 `;
 
-          if(!quesPrompt.trim()){
-            return res.status(400).json({
-              success:false,
-              msg:"Prompt Is Empty"
-            });
-          }
-            const quesResult = await axios.post(
-        process.env.GEMINI_API_URL,
-        {
-          contents: [
-          {
-            parts: [{ text: quesPrompt }]
-          }
-        ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": process.env.GEMINI_AI_KEY,
-          },
-          timeout: 40000,
-        },
-      );
-    const text =
-      quesResult.data.candidates[0].content.parts[0].text;
+    if (!quesPrompt.trim()) {
+      return res.status(400).json({
+        success: false,
+        msg: "Prompt Is Empty",
+      });
+    }
+    const quesResult = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: quesPrompt }],
+      },
+      { headers: OPENROUTER_HEADERS },
+    );
+    const text = quesResult.data.choices[0].message.content;
 
-      let parsed;
+    let parsed;
     try {
       parsed = JSON.parse(text);
     } catch (err) {
       return res.status(500).json({
         success: false,
         msg: "Invalid JSON from AI",
-        raw: text
+        raw: text,
       });
     }
     user.credits -= 50;
     await user.save();
 
     const userInterviewDetails = new InterviewDetails({
-        createdBy:user._id,
-        role,
-        experience,
-        mode,
-        resumeText:userResumeText,
-        interviewDetails: parsed.map((q,index)=>({
-           question: q.question,
-       difficulty: q.difficulty,
+      createdBy: user._id,
+      role,
+      experience,
+      mode,
+      resumeText: userResumeText,
+      interviewDetails: parsed.map((q, index) => ({
+        question: q.question,
+        difficulty: q.difficulty,
         timeLimit: q.timeLimit,
-        answer : q.answer
-       }))
-})
+        answer: q.answer,
+      })),
+    });
     await userInterviewDetails.save();
 
     res.json({
       success: true,
       interviewData: parsed,
-      interviewId : userInterviewDetails._id
+      interviewId: userInterviewDetails._id,
     });
-
-
-} catch (error) {
-  console.error("AI Error:", error.message);
-  return res.status(500).json({ success: false, msg: error.message });
+  } catch (error) {
+    console.error("AI Error:", error.message);
+    return res.status(500).json({ success: false, msg: error.message });
   }
 };
 
-const submitAnswer  = async(req,res)=>{
+const submitAnswer = async (req, res) => {
   try {
-    const {interviewId,answer,questionIndex,timeTaken} = req.body;
-
+    const { interviewId, answer, questionIndex, timeTaken } = req.body;
     const reviewInterview = await InterviewDetails.findById(interviewId);
 
-     if (!reviewInterview) {
+    if (!reviewInterview) {
       return res.status(404).json({
         success: false,
-        msg: "Interview not found"
+        msg: "Interview not found",
       });
     }
 
-    const questions = reviewInterview.interviewDetails[questionIndex]; 
+    const questions = reviewInterview.interviewDetails[questionIndex];
 
     if (!questions) {
       return res.status(400).json({
         success: false,
-        msg: "Invalid question index"
+        msg: "Invalid question index",
       });
-    }    
+    }
 
-    if(!answer){
-        questions.evaluation.score=0;
-        questions.evaluation.confidence=0;
-        questions.evaluation.communication=0;
-        questions.evaluation.correctness=0;
-        questions.evaluation.status= "skipped";
-        questions.feedback = "You didn't submit an answer";
-         questions.userAnswer = "";
-        await reviewInterview.save();
-        return res.json({
-          feedback :  questions.feedback
-        });
-    };
+    if (!answer) {
+      questions.evaluation = {
+        score: 0,
+        confidence: 0,
+        communication: 0,
+        correctness: 0,
+        status: "skipped",
+      };
 
-    if(timeTaken > questions.timeLimit){
-      questions.evaluation.score=0;
-        questions.evaluation.confidence=0;
-        questions.evaluation.communication=0;
-        questions.evaluation.correctness=0;
-         questions.userAnswer = answer;
-        questions.evaluation.status= "skipped";
-        questions.feedback = "Time limit exceeded. Answer not evaluated";
+      questions.feedback = "Question skipped by the candidate.";
 
-        await reviewInterview.save();
-        return res.json({
-          feedback :  questions.feedback
-        });
-    };
+      questions.userAnswer = "";
+
+      await reviewInterview.save();
+
+      return res.json({
+        success: true,
+        evaluation: questions.evaluation,
+        feedback: questions.feedback,
+      });
+    }
+
+    if (timeTaken > questions.timeLimit) {
+      questions.evaluation = {
+        score: 0,
+        confidence: 0,
+        communication: 0,
+        correctness: 0,
+        status: "skipped",
+        timeTaken:timeTaken
+      };
+
+      questions.feedback = "Time limit exceeded. Answer not evaluated.";
+
+      questions.userAnswer = answer;
+
+      await reviewInterview.save();
+
+      return res.json({
+        success: true,
+        evaluation: questions.evaluation,
+        feedback: questions.feedback,
+      });
+    }
 
     const submitAnswerPrompt = `
-You are an expert AI interviewer.
 
-Evaluate the candidate's answer based on the given question and ideal answer.
+You are an expert AI interviewer and technical evaluator.
 
----
+Your task is to evaluate the candidate’s answer based on the given interview question and ideal answer.
 
-📌 Inputs:
+━━━━━━━━━━━━━━━━━━━
+📌 INPUTS
+━━━━━━━━━━━━━━━━━━━
 
-Question: ${questions.question}
-Ideal Answer: ${questions.answer}
-Candidate Answer: ${answer}
+Question:
+${questions.question}
 
----
+Ideal Answer:
+${questions.answer}
 
-🎯 Evaluation Criteria:
+Candidate Answer:
+${answer}
 
-1. correctness → How accurate and relevant the answer is
-2. communication → Clarity, structure, and explanation quality
-3. confidence → Tone and confidence level (assume from wording)
-4. overall score → Combined score based on all factors
 
----
+━━━━━━━━━━━━━━━━━━━
+🎯 EVALUATION CRITERIA
+━━━━━━━━━━━━━━━━━━━
 
-📊 Scoring Rules:
+Evaluate based on:
 
-- Give scores between 0 to 10 (integers only)
-- (0) = completely wrong / no answer
-- (1-7) = average / partial understanding
-- (8-10) = excellent / near perfect
+1. correctness
+→ Accuracy, relevance, and technical validity
 
----
+2. communication
+→ Clarity, explanation quality, and structure
 
-🧠 Instructions:
+3. confidence
+→ Confidence level inferred from wording and tone
 
-- Compare candidate answer with ideal answer
-- Do NOT be too strict for beginners
-- Reward logical thinking even if not perfect
-- Penalize completely wrong or irrelevant answers
-- Keep feedback short (1–2 lines), clear, and helpful
+4. overall score
+→ Combined overall performance score
 
----
+━━━━━━━━━━━━━━━━━━━
+📊 SCORING RULES
+━━━━━━━━━━━━━━━━━━━
 
-📦 Output Format (STRICT JSON):
+- All scores must be integers between 0 and 100
+- 0 = no answer / completely incorrect
+- 10–30 = weak understanding
+- 40–70 = average or partial understanding
+- 80–100 = strong or excellent answer
 
-Return ONLY valid JSON. No explanation. No text outside JSON.
+━━━━━━━━━━━━━━━━━━━
+🧠 EVALUATION INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━
+
+- Compare the candidate answer with the ideal answer carefully
+- Do NOT be overly strict for beginners
+- Reward logical thinking and partial correctness
+- Penalize irrelevant or incorrect answers
+- Keep feedback concise, constructive, and helpful
+- Feedback should be maximum 1–2 short lines
+- Never hallucinate missing information
+- Never generate undefined values
+
+━━━━━━━━━━━━━━━━━━━
+📦 OUTPUT FORMAT (STRICT JSON)
+━━━━━━━━━━━━━━━━━━━
+
+Return ONLY valid JSON.
+
+Do NOT include:
+- markdown
+- explanations
+- extra text
+- code fences
+- additional fields
+
+Use this exact JSON structure:
 
 {
   "score": number,
@@ -385,110 +423,261 @@ Return ONLY valid JSON. No explanation. No text outside JSON.
   "feedback": "short constructive feedback"
 }
 
----
+━━━━━━━━━━━━━━━━━━━
+⚠️ FINAL RULES
+━━━━━━━━━━━━━━━━━━━
 
-⚠️ Rules:
+- Response MUST be valid parsable JSON
+- Every field is mandatory
+- Never return undefined/null values
+- Never return strings for numeric scores
+- Ensure all numeric values are integers
 
-- Do NOT include markdown
-- Do NOT include extra text
-- Do NOT include extra fields
-- Ensure JSON is valid and parsable
 `;
 
-if(!submitAnswerPrompt.trim()){
-            return res.status(400).json({
-              success:false,
-              msg:"Prompt Is Empty"
-            });
-          };
+    if (!submitAnswerPrompt.trim()) {
+      return res.status(400).json({
+        success: false,
+        msg: "Prompt Is Empty",
+      });
+    }
 
-          const answerResult = await axios.post(
-        process.env.GEMINI_API_URL,
-        {
-          contents: [
-          {
-            parts: [{ text: submitAnswerPrompt }]
-          }
-        ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": process.env.GEMINI_AI_KEY,
-          },
-          timeout: 40000,
-        },
-      );
+    const answerResult = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: submitAnswerPrompt }],
+      },
+      { headers: OPENROUTER_HEADERS },
+    );
 
-      const text = answerResult.data.candidates[0].content.parts[0].text;
+    const text = answerResult.data.choices[0].message.content;
 
-      let parsed;
+    let parsed;
 
-      try {
-        parsed = JSON.parse(text);
-      } catch (error) {
-        return res.status(500).json({
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      return res.status(500).json({
         success: false,
         msg: "Invalid JSON from AI",
-        raw: text
+        raw: text,
       });
-      }
+    }
 
-      questions.userAnswer = answer;
-      questions.evaluation = {
-  score: parsed.score,
-  confidence: parsed.confidence,
-  communication: parsed.communication,
-  correctness: parsed.correctness,
-  status: "answered"
-};
-questions.feedback = parsed.feedback;
+    questions.userAnswer = answer;
+    
+    questions.evaluation = {
+      score: parsed.score,
+      confidence: parsed.confidence,
+      communication: parsed.communication,
+      correctness: parsed.correctness,
+      status: "answered",
+      timeTaken : timeTaken
+    };
+    questions.feedback = parsed.feedback;
 
-await reviewInterview.save();
+  reviewInterview.status = "Completed";
+    await reviewInterview.save();
 
-return res.json({
-  success: true,
-  evaluation: questions.evaluation,
-  feedback: questions.feedback
-});
-
+    return res.json({
+      success: true,
+      evaluation: questions.evaluation,
+      feedback: questions.feedback,
+    });
   } catch (error) {
-      console.error("AI Error:", error.message);
-    throw new Error("Analysis failed");
-  }
-}
+    console.error("Calculate Error:", error.message);
 
-const calculate = async(req,res)=>{
-  try{
-    const {interviewId} = req.body;
+    return res.status(500).json({
+      success: false,
+      msg: "Something went wrong",
+    });
+  }
+};
+
+const calculate = async (req, res) => {
+  try {
+    const { interviewId } = req.body;
 
     const interviewData = await InterviewDetails.findById(interviewId);
 
-    if(!interviewData) {
+    if (!interviewData) {
       return res.status(400).json({
-        success : false,
-        msg:"No Interview Found"
-      })
-    };
+        success: false,
+        msg: "No Interview Found",
+      });
+    }
 
-   
+
     let totalScore = 0;
     let confidenceScore = 0;
     let communicationScore = 0;
     let totalCorrect = 0;
 
+    const formattedInterviewDetails = {
+      role : interviewData.role,
+      experience: interviewData.experience,
+      mode : interviewData.mode,
+        questions: interviewData.interviewDetails.map((q) => ({
+    question: q.question,
+    difficulty: q.difficulty,
+
+    idealAnswer: q.answer,
+
+    userAnswer: q.userAnswer,
+
+    feedback: q.feedback,
+
+    evaluation: {
+      score: q.evaluation.score,
+      confidence: q.evaluation.confidence,
+      communication: q.evaluation.communication,
+      correctness: q.evaluation.correctness,
+      timeTaken: q.evaluation.timeTaken,
+      status: q.evaluation.status,
+    },
+  })),
+    }
+    const FeedbackPrompt = `
+You are an advanced AI Interview Evaluator.
+
+Below is the complete interview data of a candidate.
+
+Interview Data:
+${JSON.stringify(formattedInterviewDetails)}
+
+Your task is to deeply analyze the candidate's complete interview performance.
+
+Analyze:
+- Technical understanding
+- Communication skills
+- Confidence level
+- Answer quality
+- Time management
+- Problem solving ability
+- Clarity of explanation
+- Consistency across answers
+
+Identify:
+- Strengths
+- Weaknesses
+- Improvement areas
+- Repeated mistakes
+- Missing concepts
+- Behavioural patterns
+
+Generate professional and realistic interview feedback similar to a real interviewer.
+
+Suggestions should be practical, concise, and actionable like these examples:
+
+1.
+Title: "Technical depth"
+Description:
+"Revisit core concepts and explain trade-offs more clearly during technical discussions."
+
+2.
+Title: "Answer structure"
+Description:
+"Use the STAR method to make behavioural answers more organised and impactful."
+
+3.
+Title: "Speaking confidence"
+Description:
+"Practice speaking slowly and reduce filler words to improve confidence and clarity."
+
+4.
+Title: "Impact metrics"
+Description:
+"Include measurable results and achievements to make answers more convincing."
+
+Return ONLY valid JSON in this exact format:
+
+{
+  "overallSummary": "",
+
+  "strengths": [
+    ""
+  ],
+
+  "weaknesses": [
+    ""
+  ],
+
+  "suggestions": [
+    {
+      "title": "",
+      "description": ""
+    }
+  ],
+
+  "technicalAnalysis": "",
+
+  "communicationAnalysis": "",
+
+  "confidenceAnalysis": "",
+
+  "timeManagementAnalysis": "",
+
+  "finalVerdict": "",
+
+  "hireRecommendation": "",
+
+  "focusAreas": [
+    ""
+  ]
+}
+
+Strict Rules:
+- Do NOT return markdown
+- Do NOT return explanation outside JSON
+-Give Atleast Minimum 4 and MAximum 4 suggestions (Min & Max = 4 not smaller than 4 not greater than 4)
+- Suggestion title must NOT exceed 4 words
+- Suggestion description must NOT exceed 30 words
+- Keep suggestions concise and actionable
+- Feedback should sound realistic and professional
+- Mention repeated weaknesses if found
+- Mention confidence patterns
+- Mention communication quality
+- Mention if answers lacked depth
+- Mention if user rushed answers
+- Mention consistency across questions
+`;
+
+     const answerResult = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "openai/gpt-4o-mini",
+        messages: [{ role: "user", content: FeedbackPrompt}],
+      },
+      { headers: OPENROUTER_HEADERS },
+    );
+
+    const text = answerResult.data.choices[0].message.content;
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        msg: "Invalid JSON from AI",
+        raw: text,
+      });
+    }
+
+
     const totalQuestion = interviewData.interviewDetails.length;
 
-   interviewData.interviewDetails.forEach((q) => {
+    interviewData.interviewDetails.forEach((q) => {
       totalScore += q.evaluation?.score || 0;
       confidenceScore += q.evaluation?.confidence || 0;
       communicationScore += q.evaluation?.communication || 0;
       totalCorrect += q.evaluation?.correctness || 0;
     });
 
-    const avgScore = totalQuestion
-      ? Math.floor(totalScore / totalQuestion)
-      : 0;
+    const avgScore = totalQuestion ? Math.floor(totalScore / totalQuestion) : 0;
+    interviewData.average = avgScore;
 
     const avgConfidence = totalQuestion
       ? Math.floor(confidenceScore / totalQuestion)
@@ -503,18 +692,21 @@ const calculate = async(req,res)=>{
       : 0;
 
     // ✅ accuracy (out of 100)
-    const accuracy = Math.floor((totalScore / (totalQuestion * 10)) * 100);
+    const accuracy =
+  totalQuestion > 0
+    ? Math.floor((totalScore / (totalQuestion * 100)) * 100)
+    : 0;
 
     let rating;
-    if (avgScore >= 8) rating = "Excellent";
-    else if (avgScore >= 6) rating = "Good";
+    if (avgScore >= 80) rating = "Excellent";
+    else if (avgScore >= 60) rating = "Good";
     else rating = "Needs Improvement";
     interviewData.interviewDetails.status = "Completed";
     await interviewData.save();
 
-
-   return res.json({
+    return res.json({
       success: true,
+      average : avgScore,
       result: {
         totalQuestions: totalQuestion,
         averageScore: avgScore,
@@ -522,18 +714,60 @@ const calculate = async(req,res)=>{
         communication: avgCommunication,
         correctness: avgCorrectness,
         accuracy,
-        rating
+        rating,
+      },
+      feedback:{
+        parsed
       }
-    });
 
+    });
   } catch (error) {
     console.error("Calculate Error:", error.message);
 
     return res.status(500).json({
       success: false,
-      msg: "Something went wrong"
+      msg: "Something went wrong",
     });
   }
-}
+};
 
-module.exports= { aiResumeAnalyzer, handleResumeUpload,generateQuestion,calculate,submitAnswer };
+const getHistory = async(req,res)=>{
+    try {
+      const result = await InterviewDetails.find({createdBy:req.userId})
+      .sort({createdAt:-1})
+      .select("role experience mode status interviewDetails createdAt");
+
+      return res.status(200).json(result)
+
+    } catch (error) {
+      return res.status(500).json({msg : error.data?.message || "Something Went Wrong"});
+    }
+}
+const getParticularHistory = async (req, res) => {
+  try {
+    const { hisId } = req.params;
+
+    const attempt = await InterviewDetails.findOne({
+      _id: hisId,
+      createdBy: req.userId,
+    });
+
+    if (!attempt) {
+      return res.status(404).json({ error: "No attempt found" });
+    }
+
+    return res.status(200).json(attempt);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Failed to fetch quiz attempt" });
+  }
+};
+module.exports = {
+  aiResumeAnalyzer,
+  handleResumeUpload,
+  generateQuestion,
+  calculate,
+  submitAnswer,
+  getHistory,
+  getParticularHistory
+};

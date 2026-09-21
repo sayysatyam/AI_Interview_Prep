@@ -27,8 +27,12 @@ import techImage from "../../assets/Interview Mode/tech.png"
 import confidenceImage from "../../assets/Interview Mode/confi.png"
 import aiAdvanceImage from "../../assets/Interview Mode/credit.png"
 import rapidImage from "../../assets/Interview Mode/rapidImage.jpeg"
+import { AIuseStore } from "../../AuthStore/AIStore";
+
 const Hero = () => {
+
   const navigate = useNavigate();
+
   const userManual = [
     {
       Icon: <FaRobot size={24} />,
@@ -151,6 +155,9 @@ const interviewModes = [
     image : aiAdvanceImage
   }
 ]; 
+
+
+
   return (
     <div className="flex items-center justify-center flex-col">
       <h2 className="flex items-center justify-center gap-2 text-normal text-gray-600">
@@ -181,7 +188,7 @@ const interviewModes = [
         with AI-driven scenarios and personalized feedback to help you improve.
       </motion.p>
 
-      <div className="flex flex-col md:flex-row gap-4 mt-5 w-full max-w-sm">
+      <div className="flex flex-col md:flex-row gap-4 mt-5 w-full max-w-[60%]">
         <motion.button
           onClick={() => navigate("/startInterview")}
           whileTap={{ scale: 0.95, y: 20 }}
@@ -193,13 +200,26 @@ const interviewModes = [
         </motion.button>
 
         <motion.button
-          onClick={() => navigate("/history")}
+         onClick={()=>{
+          navigate("/history")
+         }}
           whileTap={{ scale: 0.95, y: 20 }}
           whileHover={{ scale: 1.04 }}
           transition={{ type: "spring", stiffness: 300 }}
           className="w-full bg-white text-black border-2 border-gray-300 rounded-full px-6 py-3 font-medium cursor-pointer"
         >
           View History
+        </motion.button>
+         <motion.button
+         onClick={()=>{
+          navigate("/code")
+         }}
+          whileTap={{ scale: 0.95, y: 20 }}
+          whileHover={{ scale: 1.04 }}
+          transition={{ type: "spring", stiffness: 300 }}
+          className="w-full bg-white text-black border-2 border-gray-300 rounded-full px-6 py-3 font-medium cursor-pointer"
+        >
+          Coding
         </motion.button>
       </div>
 

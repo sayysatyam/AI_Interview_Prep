@@ -2,7 +2,8 @@ const express = require('express');
 const { signup, verifyEmail, resendVerificationCode, login, logout, forgotPassword, verifyResetToken, resetPassword, checkAuth,  googleAuth } = require('../controllers/auth');
 const { verifyToken } = require('../MiddleWare/verify');
 const upload = require('../MiddleWare/multer');
-const { handleResumeUpload, generateQuestion, submitAnswer, calculate } = require('../controllers/HandleAI');
+const { handleResumeUpload, generateQuestion, submitAnswer, calculate, getHistory, getParticularHistory } = require('../controllers/HandleAI');
+const { codeQuesGenerator, codeQuesDetail } = require('../controllers/codeAI');
 
 const route = express.Router();
 
@@ -19,5 +20,9 @@ route.post("/google", googleAuth);
 route.post("/aiResumeAnalyzer" ,verifyToken, upload.single("resume"),handleResumeUpload);
 route.post("/generate-ques",verifyToken,generateQuestion);
 route.post("/submit-answer" , verifyToken ,submitAnswer );
-route.post("/calcuate",verifyToken , calculate);
+route.post("/calculate",verifyToken , calculate);
+route.get("/getHistory",verifyToken,getHistory);
+route.get("/historyStats/:hisId",verifyToken,getParticularHistory);
+route.post("/code",verifyToken,codeQuesGenerator);
+route.get("/startCoding/:id",verifyToken,codeQuesDetail);
 module.exports = route;

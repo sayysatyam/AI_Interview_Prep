@@ -7,9 +7,10 @@ import { motion } from "framer-motion";
 import { userAuthStore } from "../../AuthStore/user";
 import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const Login = () => {
+  const location = useLocation();
   const [Email, setEmail] = useState("");
   const [Password, setPassword] = useState("");
   const navigate = useNavigate();
@@ -20,25 +21,35 @@ const Login = () => {
     clearError();
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated && user?.isVerified) {
-      navigate("/");
-    }
-  }, [isAuthenticated, user, navigate]);
+  // useEffect(() => {
+  //   if (isAuthenticated && user?.isVerified) {
+  //     navigate("/");
+  //   }
+  // }, [isAuthenticated, user, navigate]);
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const success = await googleLogin(credentialResponse.credential);
+  const success = await googleLogin(credentialResponse.credential);
 
-    if (success) {
-      toast.success("Signed in with Google 🎉");
-    }
-  };
+  if (success) {
+    toast.success("Signed in with Google 🎉");
+
+    const from = location.state?.from || "/";
+
+    navigate(from, {
+      replace: true,
+    });
+  }
+};
+
 
   const handleLogIn = async (e) => {
     e.preventDefault();
     const res = await login(Email, Password);
     if (res) {
-      navigate("/");
+      const from = location.state?.from || "/";
+       navigate(from, {
+      replace: true,
+    });
     }
   };
 

@@ -21,6 +21,7 @@ const questionsSchema = new mongoose.Schema({
     score: { type: Number, default: 0 },
     confidence: { type: Number, default: 0 },
     communication: { type: Number, default: 0 },
+     timeTaken: { type: Number, default: 60 },
     correctness: { type: Number, default: 0 },
       status: {
         type: String,
@@ -46,7 +47,7 @@ const InterviewSchema = new mongoose.Schema({
     },
     mode:{
         type:String,
-        enum:["Technical","HR","Case-Based","Behaviour"],
+        enum:["Technical","HR","Case-Based","Behavioural","Mixed"],
         required:true
     },
     resumeText : {
@@ -56,6 +57,9 @@ const InterviewSchema = new mongoose.Schema({
         type:String,
         enum:['Completed','Incomplete'],
         default:'Incomplete'
+    },
+    average : {
+        type:Number
     },
     interviewDetails:[questionsSchema]
 

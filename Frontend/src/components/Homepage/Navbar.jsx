@@ -17,7 +17,7 @@ const Navbar = () => {
     { label: "About", path: "/about" },
   ];
   return (
-    <div className="bg-[#F0EBE3] flex justify-center px-4 sm:px-6 pt-6 w-full">
+    <div className="bg-[#F0EBE3] flex justify-center px-4 sm:px-6 pt-6 w-full mb-5">
   <div className="w-full max-w-6xl bg-zinc-50 rounded-3xl shadow-md border border-gray-200 px-4 py-3 flex items-center justify-between">
     <div onClick={()=>{
     navigate("/")

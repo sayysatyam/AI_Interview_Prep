@@ -7,7 +7,6 @@ import Login from "./components/AuthFile/Login";
 import Home from "./components/Homepage/Home";
 import { useEffect } from "react";
 import { userAuthStore } from "./AuthStore/user";
-import HistoryPage from "./components/Pages/historyPage";
 import Signup from "./components/AuthFile/Signup";
 import VerifyEmail from "./components/AuthFile/VerifyEmail";
 import ForgotPassword from "./components/AuthFile/ForgotPassword";
@@ -19,6 +18,13 @@ import PrivacyPolicy from "./components/Pages/PrivacyPolicy";
 import Navbar from "./components/Homepage/Navbar";
 import InterviewStartPage from "./components/Pages/InterviewStartPage";
 import Footer from "./components/Homepage/Footer";
+import Interview from "./components/Pages/Interview";
+import AfterSubmitInterview from "./components/Pages/AfterSubmitInterview";
+import History from "./components/Pages/History";
+import HistoryStat from "./components/Pages/HistoryStat";
+import CodeStart from "./components/Pages/CodingPages/CodeStart";
+import StartCodingInterview from "./components/Pages/CodingPages/StartCodingInterview";
+
 const ProtectedRoutes = ({ children }) => {
   const { isAuthenticated, user } = userAuthStore();
   if (!isAuthenticated) {
@@ -29,6 +35,7 @@ const ProtectedRoutes = ({ children }) => {
   }
   return children;
 };
+
 const RedirectAuthenticatedUser = ({ children }) => {
   const { isAuthenticated, user } = userAuthStore();
   if (isAuthenticated && user?.isVerified) {
@@ -105,14 +112,8 @@ const App = () => {
           />
 
           <Route path="/" element={<Home />} />
-          <Route
-            path="/history"
-            element={
-              <ProtectedRoutes>
-                <HistoryPage />
-              </ProtectedRoutes>
-            }
-          />
+          <Route path="/history" element={<History />} />
+          <Route path="/historyStats/:hisId" element={<HistoryStat />} />
           <Route
             path="forgot-password"
             element={
@@ -141,15 +142,19 @@ const App = () => {
             path="/startInterview"
             element={
               <ProtectedRoutes>
-                <InterviewStartPage/>
+                <InterviewStartPage />
               </ProtectedRoutes>
             }
           />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/interview" element={<Interview />} />
+          <Route path="/evaluation" element={<AfterSubmitInterview />} />
+          <Route path="/code" element={<CodeStart />} />
+          <Route path="/startCode/:id" element={<StartCodingInterview />} />
         </Routes>
-             <div>
-               <Footer/>
-             </div>
+        <div>
+          <Footer />
+        </div>
       </div>
     </>
   );

@@ -7,23 +7,27 @@ import {
   FileText,
   Loader,
   User2,
+  X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { AIuseStore } from "../../AuthStore/AIStore";
 import { useNavigate } from "react-router-dom";
 
 const InterviewStartPage = () => {
-  const { getResumeData, ResumeData, isLoading, error,resetResumeData,questionSet,generateQuestion,isQuesLoading} = AIuseStore();
+  const navigate = useNavigate();
+  const { getResumeData, ResumeData, isLoading, error,resetResumeData,generateQuestion,isQuesLoading} = AIuseStore();
   const [File, setFile] = useState("");
   const [JobRole, setJobRole] = useState("");
-  const [ExperienceYear, setExperienceYear] = useState("");
+  const [ExperienceYear, setExperienceYear] = useState("0 – 1 year (Fresher)");
   const [interviewMode, setInterviewMode] = useState("Technical");
   const [AnalysingDone, setAnalysingDone] = useState(false);
   const [Difficulty, setDifficulty] = useState("Mixed");
     const [NumberofQues, setNumberofQues] = useState(5);
     const [localErrorForQues, setlocalErrorForQues] = useState(null);
 
-  console.table("ResumeData : ",ResumeData);
+    useEffect(()=>{
+      console.log("Resume : ",ResumeData);
+    },[ResumeData]);
 
   useEffect(() => {
     if (!JobRole && ResumeData?.experience_fit) {
@@ -158,11 +162,10 @@ const InterviewStartPage = () => {
   const handleQuestionData = async () => {
   let resume = ResumeData;
 
-  // 🧠 Step 1: If file exists but not analysed → analyse first
   if (File && !ResumeData) {
     const res = await getResumeData(File);
-    if (!res) return; // stop if failed
-    resume = res; // use fresh data
+    if (!res) return;
+    resume = res; 
   }
 
   // 🎯 Step 2: Generate questions
@@ -179,6 +182,7 @@ const InterviewStartPage = () => {
 
   if (result) {
     console.log("Questions:", result);
+    navigate("/interview");
   }
 };
 
@@ -190,8 +194,42 @@ const InterviewStartPage = () => {
     }
      
   },[NumberofQues]);
+
+  const handleCloseModal = () => {
+  resetResumeData();
+  window.location.reload(); 
+};
   return (
     <div className="bg-[#F0EBE3] w-full flex items-center justify-center px-4 sm:px-6 py-10 min-h-screen">
+
+      {error?.includes("Minimum 50 credits") && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50"></div>
+    )}
+
+    {/* 🧊 MODAL */}
+    {error?.includes("Minimum 50 credits") && (
+      <div className="fixed z-60 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+      border border-gray-300 p-8 w-80 bg-white shadow-2xl rounded-2xl flex flex-col items-center justify-center">
+
+        <X
+          onClick={handleCloseModal}
+          className="absolute top-2 right-2 h-6 w-6 bg-black text-white rounded-full p-1 cursor-pointer"
+        />
+
+        <div className="mt-4 flex flex-col items-center">
+          <p className="text-sm  text-gray-700 font-semibold tracking-wider">
+            Need More Credit to continue
+          </p>
+
+          <button
+            onClick={() => navigate("/buy-credits")}
+            className="bg-black w-full text-white px-6 py-2 rounded-2xl cursor-pointer mt-3"
+          >
+            Buy More
+          </button>
+        </div>
+      </div>
+    )}
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -199,7 +237,7 @@ const InterviewStartPage = () => {
         className="bg-white shadow-2xl rounded-3xl border border-gray-100 w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 overflow-hidden"
       >
         {/* LEFT PANEL */}
-        {/* LEFT PANEL */}
+       
         <div className="relative bg-green-50 p-8 border-r border-green-200 ">
           {/* LOADING OVERLAY */}
           {isLoading && (
@@ -470,7 +508,7 @@ const InterviewStartPage = () => {
                   { label: "Technical", desc: "DSA, system design, code" },
                   { label: "Behavioural", desc: "STAR-based HR questions" },
                   { label: "Mixed", desc: "Both in one session" },
-                  { label: "Case study", desc: "Problem-solving rounds" },
+                  { label: "Case-Based", desc: "Problem-solving rounds" },
                 ].map((mode, i) => (
                   <div
                     key={i}
@@ -542,11 +580,11 @@ const InterviewStartPage = () => {
    )}
 
             {/* OR Divider */}
-<div className="flex items-center justify-center gap-3 mb-4 mt-4">
+{!ResumeData &&(<div className="flex items-center justify-center gap-3 mb-4 mt-4">
   <hr className="w-full" />
   <p className="text-xs">OR</p>
   <hr className="w-full" />
-</div>
+</div>)}
 
 {/* Upload Zone — hidden after successful analysis */}
 {!ResumeData && (
@@ -674,7 +712,9 @@ const InterviewStartPage = () => {
             ) : (
               ""
             )}
-            
+            {error && 
+            (<p className=" flex items-center justify-center mt-2 text-xs font-normal text-red-600">{error}</p>)}
+
             <p className="text-[11px] text-gray-400 text-center mt-3 leading-relaxed">
               Your resume is never stored · Used only to personalise your
               interview
