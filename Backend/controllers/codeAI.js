@@ -7,61 +7,70 @@ const OPENROUTER_HEADERS = {
   "Content-Type": "application/json",
 };
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 const codeQuesGenerator = async (req, res) => {
   const totalStart = Date.now();
 
   try {
     const userId = req.userId;
     const { prompt } = req.body;
+
     const quesNo = 5;
 
-    if (!prompt || !prompt.trim()) {
-      console.error("CODE GENERATOR: Prompt is empty");
+    // ==================================================
+    // BASIC VALIDATION
+    // ==================================================
 
+    if (!prompt || !prompt.trim()) {
       return res.status(400).json({
         success: false,
         msg: "Prompt is empty or undefined",
       });
     }
 
+    // ==================================================
+    // USER CHECK
+    // ==================================================
+
     const userDbStart = Date.now();
 
     const user = await userDetails.findById(userId);
 
-    console.log(
-      `User DB Time: ${Date.now() - userDbStart} ms`
-    );
+    console.log(`User DB Time: ${Date.now() - userDbStart} ms`);
 
     if (!user) {
-      console.error(`CODE GENERATOR: User not found - ${userId}`);
-
       return res.status(404).json({
         success: false,
         msg: "User not found",
       });
     }
 
-    if (user.credits < 50) {
-      console.error(
-        `CODE GENERATOR: Insufficient credits - ${user.credits}`
-      );
+    // ==================================================
+    // CREDIT CHECK
+    // ==================================================
 
+    if (user.credits < 50) {
       return res.status(400).json({
         success: false,
         msg: "Minimum 50 credits are required",
       });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error(
-        "CODE GENERATOR: OPENROUTER_API_KEY is missing"
-      );
+    // ==================================================
+    // API KEY CHECK
+    // ==================================================
 
+    if (!process.env.OPENROUTER_API_KEY) {
       return res.status(500).json({
         success: false,
         msg: "OPENROUTER_API_KEY is not configured",
       });
     }
+
+    // ==================================================
+    // ORIGINAL PROMPT
+    // ==================================================
 
     const message = `You are an AI Coding Interview Question Generator.
 
@@ -205,20 +214,53 @@ LANGUAGES
 Every question MUST support all three languages.
 
 ==================================================
+CONSTRAINT REQUIREMENTS
+==================================================
+
+7. constraints MUST ALWAYS be a non-empty array.
+
+8. constraints MUST contain at least 1 constraint.
+
+9. Every constraint MUST be a non-empty string.
+
+10. NEVER return:
+
+"constraints": []
+
+11. NEVER return:
+
+"constraints": null
+
+12. NEVER omit the constraints field.
+
+13. NEVER return constraints as a single string.
+
+14. Constraints MUST be relevant to the problem.
+
+For example:
+
+"constraints": [
+  "1 <= n <= 100000",
+  "1 <= nums[i] <= 1000000000"
+]
+
+Even if a problem appears simple, provide meaningful constraints describing valid input size, value ranges, or other relevant limits.
+
+==================================================
 EXAMPLE REQUIREMENTS
 ==================================================
 
-7. Every question MUST contain at least 2 examples.
+15. Every question MUST contain at least 2 examples.
 
-8. Every example MUST contain:
+16. Every example MUST contain:
 
 - input
 - output
 - explanation
 
-9. Example input MUST always be present and MUST be a non-empty string.
+17. Example input MUST always be present and MUST be a non-empty string.
 
-10. Example output MUST always be present.
+18. Example output MUST always be present.
 
 An output value can be:
 
@@ -234,43 +276,43 @@ Do NOT omit the output field.
 
 Do NOT use null for output.
 
-11. Every explanation MUST be a non-empty string.
+19. Every explanation MUST be a non-empty string.
 
-12. Examples must correctly represent the problem and must follow the given constraints.
+20. Examples must correctly represent the problem and must follow the given constraints.
 
 ==================================================
 QUESTION QUALITY
 ==================================================
 
-13. Do NOT include solutions.
+21. Do NOT include solutions.
 
-14. Do NOT include solution code.
+22. Do NOT include solution code.
 
-15. Do NOT create duplicate questions.
+23. Do NOT create duplicate questions.
 
-16. Questions must be logically correct and solvable.
+24. Questions must be logically correct and solvable.
 
-17. The description must clearly explain the problem.
+25. The description must clearly explain the problem.
 
-18. Constraints must be relevant to the problem.
+26. Constraints must be relevant to the problem.
 
-19. inputFormat must clearly describe the input.
+27. inputFormat must clearly describe the input.
 
-20. outputFormat must clearly describe the expected output.
+28. outputFormat must clearly describe the expected output.
 
-21. Examples must match the problem description.
+29. Examples must match the problem description.
 
-22. timeLimit MUST be a positive number representing seconds.
+30. timeLimit MUST be a positive number representing seconds.
 
-23. memoryLimit MUST be a positive number representing MB.
+31. memoryLimit MUST be a positive number representing MB.
 
-24. Do NOT fabricate platform information.
+32. Do NOT fabricate platform information.
 
-25. Do NOT fabricate URLs.
+33. Do NOT fabricate URLs.
 
-26. redirectUrl and platformImage may be null.
+34. redirectUrl and platformImage may be null.
 
-27. If the question is original/custom, always use:
+35. If the question is original/custom, always use:
 
 "redirectUrl": null,
 "platformImage": null
@@ -279,13 +321,13 @@ QUESTION QUALITY
 STARTER CODE
 ==================================================
 
-28. For every question, generate starterCode for:
+36. For every question, generate starterCode for:
 
 cpp
 python
 javascript
 
-29. The starter code must provide the complete function/class signature required to solve the problem.
+37. The starter code must provide the complete function/class signature required to solve the problem.
 
 The candidate should NOT need to write:
 
@@ -307,7 +349,7 @@ Example:
 class Solution {
 public:
     int search(vector<int>& nums, int target) {
-        
+
     }
 };
 
@@ -339,24 +381,27 @@ Only provide the function/class template.
 JSON OUTPUT REQUIREMENTS
 ==================================================
 
-30. Return ONLY valid JSON.
+38. Return ONLY valid JSON.
 
-31. Do NOT return Markdown.
+39. Do NOT return Markdown.
 
-32. Do NOT use a Markdown code block.
+40. Do NOT use a Markdown code block.
 
-33. Do NOT wrap the complete JSON inside a string.
+41. Do NOT wrap the complete JSON inside a string.
 
-34. Do NOT add explanations outside the JSON.
+42. Do NOT add explanations outside the JSON.
 
-35. Do NOT add comments inside the JSON.
+43. Do NOT add comments inside the JSON.
 
-36. Do NOT include any fields that are not part of the required structure.
+44. Do NOT include any fields that are not part of the required structure.
 
-37. Before returning the JSON, internally verify:
+45. Before returning the JSON, internally verify:
 
 - Exactly ${quesNo} questions exist.
 - Every question contains all required fields.
+- constraints is a non-empty array.
+- Every constraint is a non-empty string.
+- constraints is NEVER [].
 - Every question has at least 2 examples.
 - Every example contains input, output, and explanation.
 - Every example input is a non-empty string.
@@ -430,21 +475,134 @@ Return ONLY the JSON object.
 
 There MUST NOT be any "testCases" field anywhere in the response.`;
 
-    let result;
+    const generateOneQuestion = async (questionNumber, extraInstruction) => {
+      const questionMessage = `${message}
 
-    const aiStart = Date.now();
+==================================================
+PARALLEL GENERATION INSTRUCTION
+==================================================
 
-    try {
-      result = await axios.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+This is parallel generation request ${questionNumber} of ${quesNo}.
+
+For THIS request only, generate exactly ONE coding question.
+
+DO NOT generate ${quesNo} questions.
+
+Generate ONLY ONE question.
+
+==================================================
+CRITICAL CONSTRAINT REQUIREMENT
+==================================================
+
+The "constraints" field MUST be a NON-EMPTY ARRAY.
+
+It MUST contain at least ONE meaningful constraint.
+
+NEVER return:
+
+"constraints": []
+
+NEVER return:
+
+"constraints": null
+
+NEVER omit "constraints".
+
+NEVER return "constraints" as a string.
+
+Correct:
+
+"constraints": [
+  "1 <= n <= 100000",
+  "1 <= nums[i] <= 1000000000"
+]
+
+Incorrect:
+
+"constraints": []
+
+Incorrect:
+
+"constraints": null
+
+Incorrect:
+
+"constraints": "1 <= n <= 100000"
+
+Before returning the JSON, verify that the constraints array contains at least one non-empty string.
+
+==================================================
+REQUIRED ONE-QUESTION STRUCTURE
+==================================================
+
+{
+  "questions": [
+    {
+      "title": "...",
+      "difficulty": "medium",
+      "topic": "...",
+      "redirectUrl": null,
+      "platformImage": null,
+      "description": "...",
+      "constraints": [
+        "1 <= n <= 100000"
+      ],
+      "inputFormat": "...",
+      "outputFormat": "...",
+      "examples": [
+        {
+          "input": "...",
+          "output": "...",
+          "explanation": "..."
+        },
+        {
+          "input": "...",
+          "output": "...",
+          "explanation": "..."
+        }
+      ],
+      "allowedLanguages": [
+        "cpp",
+        "python",
+        "javascript"
+      ],
+      "starterCode": {
+        "cpp": "...",
+        "python": "...",
+        "javascript": "..."
+      },
+      "timeLimit": 2,
+      "memoryLimit": 256
+    }
+  ],
+  "difficulty": "medium"
+}
+
+IMPORTANT:
+
+- Exactly ONE question.
+- constraints MUST contain at least one string.
+- At least TWO examples.
+- All three languages are required.
+- No testCases.
+- No solution code.
+- No extra fields.
+
+${extraInstruction}
+`;
+
+      const response = await axios.post(
+        OPENROUTER_URL,
         {
           model: "openai/gpt-4o-mini",
+
           messages: [
             {
               role: "user",
-              content: message,
+              content: questionMessage,
             },
           ],
+
           response_format: {
             type: "json_object",
           },
@@ -452,374 +610,433 @@ There MUST NOT be any "testCases" field anywhere in the response.`;
         {
           headers: OPENROUTER_HEADERS,
           timeout: 120000,
-        }
+        },
       );
 
-      console.log(
-        `AI Response Time: ${Date.now() - aiStart} ms`
-      );
-    } catch (axiosError) {
-      console.error(
-        "OPENROUTER ERROR:",
-        axiosError.response?.data?.error?.message ||
-          axiosError.message
-      );
+      const text = response?.data?.choices?.[0]?.message?.content;
 
-      return res.status(502).json({
-        success: false,
-        msg:
-          axiosError.response?.data?.error?.message ||
-          axiosError.message ||
-          "OpenRouter request failed.",
-      });
-    }
-
-    const text =
-      result?.data?.choices?.[0]?.message?.content;
-
-    if (!text) {
-      console.error(
-        "CODE GENERATOR: AI returned empty content"
-      );
-
-      return res.status(502).json({
-        success: false,
-        msg: "AI returned an empty response.",
-      });
-    }
-
-    let cleanText = text.trim();
-
-    if (cleanText.startsWith("```")) {
-      cleanText = cleanText
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-    }
-
-    let parsed;
-
-    try {
-      parsed = JSON.parse(cleanText);
-    } catch (parseError) {
-      console.error(
-        "JSON PARSE ERROR:",
-        parseError.message
-      );
-
-      return res.status(422).json({
-        success: false,
-        msg: "AI generated invalid JSON.",
-      });
-    }
-
-    if (
-      !parsed ||
-      !Array.isArray(parsed.questions)
-    ) {
-      console.error(
-        "CODE GENERATOR: Invalid questions array"
-      );
-
-      return res.status(500).json({
-        success: false,
-        msg:
-          "AI response does not contain valid questions.",
-      });
-    }
-
-    if (parsed.questions.length !== quesNo) {
-      console.error(
-        `CODE GENERATOR: Expected ${quesNo} questions, received ${parsed.questions.length}`
-      );
-
-      return res.status(500).json({
-        success: false,
-        msg:
-          `AI must generate exactly ${quesNo} questions.`,
-      });
-    }
-
-    const validDifficulties = [
-      "easy",
-      "medium",
-      "hard",
-      "mixed",
-    ];
-
-    const validQuestionDifficulties = [
-      "easy",
-      "medium",
-      "hard",
-    ];
-
-    const validLanguages = [
-      "cpp",
-      "python",
-      "javascript",
-    ];
-
-    if (
-      !validDifficulties.includes(
-        parsed.difficulty
-      )
-    ) {
-      console.error(
-        "CODE GENERATOR: Invalid overall difficulty"
-      );
-
-      return res.status(500).json({
-        success: false,
-        msg:
-          "AI generated an invalid overall difficulty.",
-      });
-    }
-
-    for (
-      const [questionIndex, question]
-      of parsed.questions.entries()
-    ) {
-      const questionNumber =
-        questionIndex + 1;
-
-      if (
-        typeof question.title !== "string" ||
-        question.title.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: title missing`
+      if (!text) {
+        throw new Error(
+          `AI returned empty response for question ${questionNumber}`,
         );
+      }
 
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: title is missing.`,
-        });
+      let cleanText = text.trim();
+
+      // Remove markdown code fence if model returns one
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText
+          .replace(/^```json\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+      }
+
+      let parsed;
+
+      try {
+        parsed = JSON.parse(cleanText);
+      } catch (parseError) {
+        throw new Error(
+          `Invalid JSON for question ${questionNumber}: ${parseError.message}`,
+        );
       }
 
       if (
-        !validQuestionDifficulties.includes(
-          question.difficulty
-        )
+        !parsed ||
+        !Array.isArray(parsed.questions) ||
+        parsed.questions.length !== 1
       ) {
-        console.error(
-          `Question ${questionNumber}: invalid difficulty`
+        throw new Error(
+          `AI returned invalid question count for question ${questionNumber}`,
         );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: invalid difficulty.`,
-        });
       }
 
-      if (
-        typeof question.topic !== "string" ||
-        question.topic.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: topic missing`
-        );
+      const question = parsed.questions[0];
 
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: topic is missing.`,
-        });
-      }
-
-      if (
-        typeof question.description !== "string" ||
-        question.description.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: description missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: description is missing.`,
-        });
-      }
+      // ==================================================
+      // IMMEDIATE AI RESPONSE VALIDATION
+      // ==================================================
 
       if (
         !Array.isArray(question.constraints) ||
-        question.constraints.length === 0
+        question.constraints.length === 0 ||
+        question.constraints.some(
+          (constraint) => typeof constraint !== "string" || !constraint.trim(),
+        )
       ) {
-        console.error(
-          `Question ${questionNumber}: constraints invalid`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: constraints are invalid.`,
-        });
+        throw new Error(`Question ${questionNumber}: constraints invalid`);
       }
 
-      if (
-        typeof question.inputFormat !== "string" ||
-        question.inputFormat.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: inputFormat missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: inputFormat is missing.`,
-        });
-      }
-
-      if (
-        typeof question.outputFormat !== "string" ||
-        question.outputFormat.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: outputFormat missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber}: outputFormat is missing.`,
-        });
-      }
-
-      if (
-        !Array.isArray(question.examples) ||
-        question.examples.length < 2
-      ) {
-        console.error(
-          `Question ${questionNumber}: insufficient examples`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg:
-            `Question ${questionNumber} must have at least 2 examples.`,
-        });
-      }
-
-      for (
-        const [
-          exampleIndex,
-          example,
-        ] of question.examples.entries()
-      ) {
-        const exampleNumber =
-          exampleIndex + 1;
-
-        if (
-          typeof example.input !== "string" ||
-          example.input.trim() === ""
-        ) {
-          console.error(
-            `Question ${questionNumber}, Example ${exampleNumber}: input missing`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg:
-              `Question ${questionNumber}, Example ${exampleNumber}: input missing.`,
-          });
-        }
-
-        if (
-          example.output === undefined ||
-          example.output === null
-        ) {
-          console.error(
-            `Question ${questionNumber}, Example ${exampleNumber}: output missing`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg:
-              `Question ${questionNumber}, Example ${exampleNumber}: output missing.`,
-          });
-        }
-
-        if (
-          typeof example.output === "string" &&
-          example.output.trim() === ""
-        ) {
-          console.error(
-            `Question ${questionNumber}, Example ${exampleNumber}: output empty`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg:
-              `Question ${questionNumber}, Example ${exampleNumber}: output cannot be empty.`,
-          });
-        }
-
-        if (
-          typeof example.explanation !== "string" ||
-          example.explanation.trim() === ""
-        ) {
-          console.error(
-            `Question ${questionNumber}, Example ${exampleNumber}: explanation missing`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg:
-              `Question ${questionNumber}, Example ${exampleNumber}: explanation missing.`,
-          });
-        }
+      if (!Array.isArray(question.examples) || question.examples.length < 2) {
+        throw new Error(`Question ${questionNumber}: insufficient examples`);
       }
 
       if (
         !Array.isArray(question.allowedLanguages) ||
         question.allowedLanguages.length !== 3
       ) {
-        console.error(
-          `Question ${questionNumber}: allowedLanguages invalid`
-        );
+        throw new Error(`Question ${questionNumber}: allowedLanguages invalid`);
+      }
 
+      if (!question.starterCode || typeof question.starterCode !== "object") {
+        throw new Error(`Question ${questionNumber}: starterCode missing`);
+      }
+
+      if (
+        question.redirectUrl !== null &&
+        typeof question.redirectUrl !== "string"
+      ) {
+        throw new Error(`Question ${questionNumber}: invalid redirectUrl`);
+      }
+
+      if (
+        question.platformImage !== null &&
+        typeof question.platformImage !== "string"
+      ) {
+        throw new Error(`Question ${questionNumber}: invalid platformImage`);
+      }
+
+      return {
+        question,
+        difficulty: parsed.difficulty,
+      };
+    };
+
+    // ==================================================
+    // RETRY ONLY FAILED QUESTION
+    // ==================================================
+
+    const generateWithRetry = async (
+      questionNumber,
+      instruction,
+      maxRetries = 2,
+    ) => {
+      let lastError;
+
+      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        try {
+          const result = await generateOneQuestion(
+            questionNumber,
+            `${instruction}
+
+FINAL REMINDER FOR THIS REQUEST:
+
+The constraints field MUST NOT be empty.
+
+It MUST look like:
+
+"constraints": [
+  "1 <= n <= 100000"
+]
+
+Generate meaningful constraints based on the actual problem.`,
+          );
+
+          return result;
+        } catch (error) {
+          lastError = error;
+
+          if (attempt < maxRetries + 1) {
+            console.log(`Question ${questionNumber}: retrying...`);
+          }
+        }
+      }
+
+      throw new Error(
+        `Question ${questionNumber} failed after ${
+          maxRetries + 1
+        } attempts: ${lastError?.message || "Unknown error"}`,
+      );
+    };
+
+    // ==================================================
+    // PARALLEL AI GENERATION
+    // ==================================================
+
+    const aiStart = Date.now();
+
+    console.log("Starting 5 parallel AI question generations...");
+
+    const results = await Promise.all(
+      [
+        {
+          number: 1,
+          instruction:
+            "Prefer an original/custom coding problem for this question.",
+        },
+
+        {
+          number: 2,
+          instruction:
+            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+        },
+
+        {
+          number: 3,
+          instruction:
+            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+        },
+
+        {
+          number: 4,
+          instruction:
+            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+        },
+
+        {
+          number: 5,
+          instruction:
+            "Prefer an original/custom coding problem for this question.",
+        },
+      ].map(({ number, instruction }) =>
+        generateWithRetry(number, instruction),
+      ),
+    );
+
+    console.log(`Parallel AI Time: ${Date.now() - aiStart} ms`);
+
+    // ==================================================
+    // COMBINE RESULTS
+    // ==================================================
+
+    const difficulties = results.map((result) => result.question.difficulty);
+
+    const uniqueDifficulties = [...new Set(difficulties)];
+
+    const overallDifficulty =
+      uniqueDifficulties.length === 1 ? uniqueDifficulties[0] : "mixed";
+
+    const parsed = {
+      questions: results.map((result) => result.question),
+      difficulty: overallDifficulty,
+    };
+
+    // ==================================================
+    // COMBINED RESPONSE VALIDATION
+    // ==================================================
+
+    if (!parsed || !Array.isArray(parsed.questions)) {
+      return res.status(500).json({
+        success: false,
+        msg: "AI response does not contain valid questions.",
+      });
+    }
+
+    if (parsed.questions.length !== quesNo) {
+      return res.status(500).json({
+        success: false,
+        msg: `AI must generate exactly ${quesNo} questions.`,
+      });
+    }
+
+    // ==================================================
+    // VALID VALUES
+    // ==================================================
+
+    const validDifficulties = ["easy", "medium", "hard", "mixed"];
+
+    const validQuestionDifficulties = ["easy", "medium", "hard"];
+
+    const validLanguages = ["cpp", "python", "javascript"];
+
+    // ==================================================
+    // OVERALL DIFFICULTY
+    // ==================================================
+
+    if (!validDifficulties.includes(parsed.difficulty)) {
+      return res.status(500).json({
+        success: false,
+        msg: "AI generated an invalid overall difficulty.",
+      });
+    }
+
+    // ==================================================
+    // QUESTION VALIDATION
+    // ==================================================
+
+    const questionTitles = new Set();
+
+    for (const [questionIndex, question] of parsed.questions.entries()) {
+      const questionNumber = questionIndex + 1;
+
+      if (typeof question.title !== "string" || question.title.trim() === "") {
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: allowedLanguages is invalid.`,
+          msg: `Question ${questionNumber}: title is missing.`,
         });
       }
 
-      for (
-        const language
-        of question.allowedLanguages
-      ) {
-        if (
-          !validLanguages.includes(language)
-        ) {
-          console.error(
-            `Question ${questionNumber}: invalid language ${language}`
-          );
+      const normalizedTitle = question.title.trim().toLowerCase();
 
+      if (questionTitles.has(normalizedTitle)) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: duplicate question detected.`,
+        });
+      }
+
+      questionTitles.add(normalizedTitle);
+
+      // ----------------------------------------------
+      // DIFFICULTY
+      // ----------------------------------------------
+
+      if (!validQuestionDifficulties.includes(question.difficulty)) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: invalid difficulty.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // TOPIC
+      // ----------------------------------------------
+
+      if (typeof question.topic !== "string" || question.topic.trim() === "") {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: topic is missing.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // DESCRIPTION
+      // ----------------------------------------------
+
+      if (
+        typeof question.description !== "string" ||
+        question.description.trim() === ""
+      ) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: description is missing.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // CONSTRAINTS
+      // ----------------------------------------------
+
+      if (
+        !Array.isArray(question.constraints) ||
+        question.constraints.length === 0 ||
+        question.constraints.some(
+          (constraint) => typeof constraint !== "string" || !constraint.trim(),
+        )
+      ) {
+        return res.status(422).json({
+          success: false,
+          msg: `Question ${questionNumber}: constraints invalid.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // INPUT FORMAT
+      // ----------------------------------------------
+
+      if (
+        typeof question.inputFormat !== "string" ||
+        question.inputFormat.trim() === ""
+      ) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: inputFormat is missing.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // OUTPUT FORMAT
+      // ----------------------------------------------
+
+      if (
+        typeof question.outputFormat !== "string" ||
+        question.outputFormat.trim() === ""
+      ) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: outputFormat is missing.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // EXAMPLES
+      // ----------------------------------------------
+
+      if (!Array.isArray(question.examples) || question.examples.length < 2) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber} must have at least 2 examples.`,
+        });
+      }
+
+      for (const [exampleIndex, example] of question.examples.entries()) {
+        const exampleNumber = exampleIndex + 1;
+
+        // Input
+        if (typeof example.input !== "string" || example.input.trim() === "") {
           return res.status(500).json({
             success: false,
-            msg:
-              `Question ${questionNumber}: invalid language ${language}.`,
+            msg: `Question ${questionNumber}, Example ${exampleNumber}: input missing.`,
+          });
+        }
+
+        // Output
+        if (example.output === undefined || example.output === null) {
+          return res.status(500).json({
+            success: false,
+            msg: `Question ${questionNumber}, Example ${exampleNumber}: output missing.`,
+          });
+        }
+
+        // Empty string output is invalid
+        if (
+          typeof example.output === "string" &&
+          example.output.trim() === ""
+        ) {
+          return res.status(500).json({
+            success: false,
+            msg: `Question ${questionNumber}, Example ${exampleNumber}: output cannot be empty.`,
+          });
+        }
+
+        // Explanation
+        if (
+          typeof example.explanation !== "string" ||
+          example.explanation.trim() === ""
+        ) {
+          return res.status(500).json({
+            success: false,
+            msg: `Question ${questionNumber}, Example ${exampleNumber}: explanation missing.`,
           });
         }
       }
 
-      if (
-        !question.starterCode ||
-        typeof question.starterCode !== "object"
-      ) {
-        console.error(
-          `Question ${questionNumber}: starterCode missing`
-        );
+      // ----------------------------------------------
+      // LANGUAGES
+      // ----------------------------------------------
 
+      if (
+        !Array.isArray(question.allowedLanguages) ||
+        question.allowedLanguages.length !== 3 ||
+        !validLanguages.every((language) =>
+          question.allowedLanguages.includes(language),
+        )
+      ) {
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: starterCode is missing.`,
+          msg: `Question ${questionNumber}: allowedLanguages is invalid.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // STARTER CODE
+      // ----------------------------------------------
+
+      if (!question.starterCode || typeof question.starterCode !== "object") {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: starterCode is missing.`,
         });
       }
 
@@ -827,14 +1044,9 @@ There MUST NOT be any "testCases" field anywhere in the response.`;
         typeof question.starterCode.cpp !== "string" ||
         question.starterCode.cpp.trim() === ""
       ) {
-        console.error(
-          `Question ${questionNumber}: C++ starterCode missing`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: C++ starterCode is missing.`,
+          msg: `Question ${questionNumber}: C++ starterCode is missing.`,
         });
       }
 
@@ -842,186 +1054,205 @@ There MUST NOT be any "testCases" field anywhere in the response.`;
         typeof question.starterCode.python !== "string" ||
         question.starterCode.python.trim() === ""
       ) {
-        console.error(
-          `Question ${questionNumber}: Python starterCode missing`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: Python starterCode is missing.`,
+          msg: `Question ${questionNumber}: Python starterCode is missing.`,
         });
       }
 
       if (
-        typeof question.starterCode.javascript !==
-          "string" ||
+        typeof question.starterCode.javascript !== "string" ||
         question.starterCode.javascript.trim() === ""
       ) {
-        console.error(
-          `Question ${questionNumber}: JavaScript starterCode missing`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: JavaScript starterCode is missing.`,
+          msg: `Question ${questionNumber}: JavaScript starterCode is missing.`,
         });
       }
 
-      if (
-        typeof question.timeLimit !== "number" ||
-        question.timeLimit <= 0
-      ) {
-        console.error(
-          `Question ${questionNumber}: invalid timeLimit`
-        );
+      // ----------------------------------------------
+      // TIME LIMIT
+      // ----------------------------------------------
 
+      if (typeof question.timeLimit !== "number" || question.timeLimit <= 0) {
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: timeLimit is invalid.`,
+          msg: `Question ${questionNumber}: timeLimit is invalid.`,
         });
       }
+
+      // ----------------------------------------------
+      // MEMORY LIMIT
+      // ----------------------------------------------
 
       if (
         typeof question.memoryLimit !== "number" ||
         question.memoryLimit <= 0
       ) {
-        console.error(
-          `Question ${questionNumber}: invalid memoryLimit`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: memoryLimit is invalid.`,
+          msg: `Question ${questionNumber}: memoryLimit is invalid.`,
         });
       }
+
+      // ----------------------------------------------
+      // REDIRECT URL
+      // ----------------------------------------------
 
       if (
         question.redirectUrl !== null &&
         typeof question.redirectUrl !== "string"
       ) {
-        console.error(
-          `Question ${questionNumber}: invalid redirectUrl`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: redirectUrl is invalid.`,
+          msg: `Question ${questionNumber}: redirectUrl is invalid.`,
         });
       }
+
+      // ----------------------------------------------
+      // PLATFORM IMAGE
+      // ----------------------------------------------
 
       if (
         question.platformImage !== null &&
         typeof question.platformImage !== "string"
       ) {
-        console.error(
-          `Question ${questionNumber}: invalid platformImage`
-        );
-
         return res.status(500).json({
           success: false,
-          msg:
-            `Question ${questionNumber}: platformImage is invalid.`,
+          msg: `Question ${questionNumber}: platformImage is invalid.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // NO TEST CASES
+      // ----------------------------------------------
+
+      if (Object.prototype.hasOwnProperty.call(question, "testCases")) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: testCases are not allowed.`,
         });
       }
     }
 
-    const quesDetails =
-      parsed.questions.map(
-        (question) => ({
-          title: question.title,
-          difficulty: question.difficulty,
-          topic: question.topic,
-          redirectUrl:
-            question.redirectUrl || "",
-          platformImage:
-            question.platformImage || "",
-          description: question.description,
-          constraints: question.constraints,
-          inputFormat: question.inputFormat,
-          outputFormat: question.outputFormat,
-          examples: question.examples,
-          allowedLanguages:
-            question.allowedLanguages,
-          starterCode: {
-            cpp: question.starterCode.cpp,
-            python:
-              question.starterCode.python,
-            javascript:
-              question.starterCode.javascript,
-          },
-          timeLimit: question.timeLimit,
-          memoryLimit: question.memoryLimit,
-        })
-      );
+    // ==================================================
+    // PREPARE MONGODB DATA
+    // ==================================================
 
-    const codeQuestion =
-      new CodingDetails({
-        createdBy: userId,
-        prompt: prompt,
-        difficulty: parsed.difficulty,
-        numberOfQuestions: quesNo,
-        startedAt: new Date(),
-        codingDetails: quesDetails,
-      });
+    const quesDetails = parsed.questions.map((question) => ({
+      title: question.title,
+      difficulty: question.difficulty,
+      topic: question.topic,
+
+      redirectUrl: question.redirectUrl || "",
+
+      platformImage: question.platformImage || "",
+
+      description: question.description,
+
+      constraints: question.constraints,
+
+      inputFormat: question.inputFormat,
+
+      outputFormat: question.outputFormat,
+
+      examples: question.examples,
+
+      allowedLanguages: question.allowedLanguages,
+
+      starterCode: {
+        cpp: question.starterCode.cpp,
+
+        python: question.starterCode.python,
+
+        javascript: question.starterCode.javascript,
+      },
+
+      timeLimit: question.timeLimit,
+
+      memoryLimit: question.memoryLimit,
+    }));
+
+    // ==================================================
+    // CREATE CODING QUESTION DOCUMENT
+    // ==================================================
+
+    const codeQuestion = new CodingDetails({
+      createdBy: userId,
+      prompt: prompt,
+      difficulty: parsed.difficulty,
+      numberOfQuestions: quesNo,
+      startedAt: new Date(),
+      codingDetails: quesDetails,
+    });
+
+    // ==================================================
+    // SAVE CODING ROUND
+    // ==================================================
 
     try {
       await codeQuestion.save();
     } catch (mongoError) {
-      console.error(
-        "MONGODB SAVE ERROR:",
-        mongoError.message
-      );
+      console.error("MONGODB SAVE ERROR:", mongoError.message);
 
       throw mongoError;
     }
+
+    // ==================================================
+    // DEDUCT CREDITS
+    // ==================================================
 
     user.credits -= 50;
 
     await user.save();
 
-    console.log(
-      `Total Coding Generation Time: ${Date.now() - totalStart} ms`
-    );
+    // ==================================================
+    // FINAL LOG
+    // ==================================================
+
+    console.log(`Total Coding Generation Time: ${Date.now() - totalStart} ms`);
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,
+
       msg: "Coding round generated successfully.",
+
       data: parsed,
+
       codingID: codeQuestion._id.toString(),
     });
   } catch (error) {
-    console.error(
-      "CODE GENERATOR ERROR:",
-      error.message
-    );
+    console.error("CODE GENERATOR ERROR:", error.message);
 
-    if (
-      error.name === "ValidationError"
-    ) {
+    // ==================================================
+    // MONGOOSE VALIDATION ERROR
+    // ==================================================
+
+    if (error.name === "ValidationError") {
       console.error(
         "MONGOOSE VALIDATION ERROR:",
-        Object.keys(error.errors || {})
+        Object.keys(error.errors || {}),
       );
 
       return res.status(400).json({
         success: false,
-        msg:
-          "Generated coding question contains invalid data.",
-        details:
-          Object.keys(error.errors || {}),
+
+        msg: "Generated coding question contains invalid data.",
+
+        details: Object.keys(error.errors || {}),
       });
     }
 
+    // ==================================================
+    // DUPLICATE KEY
+    // ==================================================
+
     if (error.code === 11000) {
-      console.error(
-        "MONGODB DUPLICATE KEY:",
-        error.keyValue
-      );
+      console.error("MONGODB DUPLICATE KEY:", error.keyValue);
 
       return res.status(409).json({
         success: false,
@@ -1029,14 +1260,23 @@ There MUST NOT be any "testCases" field anywhere in the response.`;
       });
     }
 
+    // ==================================================
+    // GENERAL ERROR
+    // ==================================================
+
     return res.status(500).json({
       success: false,
+
       msg:
         error.message ||
         "Something went wrong while generating the coding round.",
     });
   }
 };
+
+// ======================================================
+// GET CODING QUESTION DETAILS
+// ======================================================
 
 const codeQuesDetail = async (req, res) => {
   const { id } = req.params;
@@ -1049,8 +1289,7 @@ const codeQuesDetail = async (req, res) => {
       });
     }
 
-    const codingQuestionDetails =
-      await CodingDetails.findById(id);
+    const codingQuestionDetails = await CodingDetails.findById(id);
 
     if (!codingQuestionDetails) {
       return res.status(404).json({
@@ -1061,24 +1300,29 @@ const codeQuesDetail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message:
-        "Coding question fetched successfully",
+
+      message: "Coding question fetched successfully",
+
       details: codingQuestionDetails,
+
       codingId: id,
     });
   } catch (error) {
-    console.error(
-      "CODE QUESTION DETAIL ERROR:",
-      error.message
-    );
+    console.error("CODE QUESTION DETAIL ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
+
       message: "Failed to fetch coding question",
+
       error: error.message,
     });
   }
 };
+
+// ======================================================
+// EXPORTS
+// ======================================================
 
 module.exports = {
   codeQuesGenerator,
