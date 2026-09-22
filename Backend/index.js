@@ -5,6 +5,7 @@ const authRouter = require("./router/user");
 const cors = require("cors");
 const app = express();
 const path = require("path");
+const { connectRedis } = require("./config/redis");
 require("dotenv").config();
 const port = process.env.PORT || 4000;
 
@@ -19,7 +20,7 @@ app.use(
   })
 );
 connectMongoDb(process.env.MONGO_URL);
-
+connectRedis();
 
 app.use("/auth",authRouter);
 

@@ -1,7 +1,7 @@
 const axios = require("axios");
 const CodingDetails = require("../models/codeAI");
 const userDetails = require("../models/auth");
-
+const { redisClient } = require("../config/redis");
 const OPENROUTER_HEADERS = {
   Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
   "Content-Type": "application/json",
@@ -1530,7 +1530,6 @@ Empty input is allowed when valid for the problem.`,
       startedAt: new Date(),
       codingDetails: quesDetails,
     });
-
     // ==================================================
     // SAVE CODING ROUND
     // ==================================================
@@ -1545,6 +1544,45 @@ Empty input is allowed when valid for the problem.`,
 
       throw mongoError;
     }
+
+    //-----REDIS------
+      try {
+
+  console.log("⚡ Caching test cases in Redis...");
+
+  for (
+    let idx = 0;
+    idx < codeQuestion.codingDetails.length;
+    idx++
+  ) {
+
+    const question =
+      codeQuestion.codingDetails[idx];
+
+    const cacheKey =
+      `coding:testCases:${codeQuestion._id}:${idx}`;
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(question.testCases),
+      {
+        EX: 60 * 60
+      }
+    );
+
+    console.log(
+      `⚡ Test cases cached: ${cacheKey}`
+    );
+  }
+
+} catch (redisError) {
+
+  console.error(
+    "❌ REDIS CACHE ERROR:",
+    redisError.message
+  );
+
+}
 
     // ==================================================
     // DEDUCT CREDITS
