@@ -3,14 +3,14 @@ import { codeAIStore } from "../../../AuthStore/codeAI";
 import { Loader } from "lucide-react";
 import { userAuthStore } from "../../../AuthStore/user";
 import { useLocation, useNavigate } from "react-router-dom";
-
+import { useRef } from "react";
 const CodeStart = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [prompt, setPrompt] = useState("");
   const [errorNow, seterrorNow] = useState("");
-
+const promptRef = useRef(null);
   const {
     codingQuestionGenerator,
     isLoadingCodingQuestion,
@@ -158,7 +158,9 @@ const CodeStart = () => {
         </div>
 
         {/* PROMPT */}
-        <div className="w-full max-w-3xl mx-auto mt-9">
+        <div
+        ref={promptRef}
+        className="w-full max-w-3xl mx-auto mt-9">
 
           <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.05)] p-3">
 
@@ -329,11 +331,19 @@ const CodeStart = () => {
               <button
                 key={round.title}
                 onClick={() =>
-                  setPrompt(
+                  {
+                    setPrompt(
                     `Create a ${round.title} coding round with 5 questions.`
-                  )
+                  );
+                  setTimeout(() => {
+                    promptRef?.current?.scrollIntoView({
+                      behaviour : "smooth",
+                      block : "center"
+                    })
+                  }, 50);
                 }
-                className="group text-left rounded-2xl border border-gray-200 bg-white overflow-hidden hover:border-gray-300 hover:shadow-md transition-all"
+                }
+                className="group text-left rounded-2xl border border-gray-200 bg-white overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
               >
 
                 {/* IMAGE */}
@@ -411,12 +421,19 @@ const CodeStart = () => {
             </p>
 
             <button
+            
               onClick={() =>
-                setPrompt(
-                  "Create a realistic 5-question coding assessment for a third-year CSE student."
+                {setPrompt(
+                  "Create a realistic 5-question coding assessment"
                 )
+                setTimeout(() => {
+                  promptRef?.current?.scrollIntoView({
+                      behaviour:"smooth",
+                    block : "center"
+                  })
+                }, 50);}
               }
-              className="mt-6 px-4 py-2.5 rounded-xl bg-white text-gray-900 text-xs font-semibold hover:bg-gray-100 transition"
+              className="mt-6 px-4 py-2.5 rounded-xl bg-white text-gray-900 text-xs font-semibold hover:bg-gray-100 transition cursor-pointer"
             >
               Start practicing →
             </button>
@@ -426,31 +443,6 @@ const CodeStart = () => {
         </div>
 
         {/* BOTTOM CTA */}
-        <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-
-          <div>
-            <p className="text-sm font-semibold text-gray-800">
-              Ready to test your problem-solving skills?
-            </p>
-
-            <p className="text-xs text-gray-400 mt-1">
-              Choose a company, difficulty, or describe your own round above.
-            </p>
-          </div>
-
-          <button
-            onClick={() =>
-              setPrompt(
-                "Create a 5-question DSA coding round for a third-year CSE student."
-              )
-            }
-            className="shrink-0 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800 transition"
-          >
-            Generate a round →
-          </button>
-
-        </div>
-
       </div>
     </div>
   );

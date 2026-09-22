@@ -4,6 +4,7 @@ import { userAuthStore } from "../../AuthStore/user";
 import { BadgeDollarSign, Bot, Coins, LogIn, LogOut, User } from "lucide-react";
 import { FaRobot, FaSpinner } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 const Navbar = () => {
   const navigate = useNavigate();
   const [showCreditPopup, setshowCreditPopup] = useState(false);
@@ -16,6 +17,8 @@ const Navbar = () => {
     { label: "Pricing", path: "/pricing" },
     { label: "About", path: "/about" },
   ];
+  useEffect(()=>{
+  },[user?.credits]);
   return (
     <div className="bg-[#F0EBE3] flex justify-center px-4 sm:px-6 pt-6 w-full mb-5">
   <div className="w-full max-w-6xl bg-zinc-50 rounded-3xl shadow-md border border-gray-200 px-4 py-3 flex items-center justify-between">

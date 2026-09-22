@@ -11,7 +11,7 @@ export const codeAIStore = create((set) => ({
     error : null,
     codeQuestionData : [],
     codingID:null,
-
+        resultAfterSubmit : [],
     codingQuestionGenerator : async(prompt) => {
         set({isLoadingCodingQuestion  : true , error:null});
         try {
@@ -48,5 +48,24 @@ export const codeAIStore = create((set) => ({
         success: false,
       });
         }
+    },
+    codeSubmitAI : async(code,quesTitle,quesDescription,quesConstraints,quesInput,quesOutput,codeLang) =>{
+         set({isLoadingCodingQuestion  : true , error:null});
+         try {
+            const res = await axios.get(
+        `${API_URL}/submitCode`,{
+            code,quesTitle,quesDescription,quesConstraints,quesInput,quesOutput,codeLang
+        }
+      );
+            const resultAfterSubmit = res?.data?.data;
+            set({isLoadingCodingQuestion :false,error:null,resultAfterSubmit});
+            return resultAfterSubmit;
+         } catch (error) {
+            set({
+        error: error.response?.data?.msg || "Something Went Wrong",
+        isLoadingCodingQuestion : false,
+        success: false,
+      });
+         }
     }
-}))
+}));
