@@ -8,50 +8,60 @@ const OPENROUTER_HEADERS = {
 };
 
 const codeQuesGenerator = async (req, res) => {
-  try {
-    // ==========================================
-    // 1. GET USER + PROMPT
-    // ==========================================
+  const totalStart = Date.now();
 
+  try {
     const userId = req.userId;
     const { prompt } = req.body;
-
     const quesNo = 5;
 
     if (!prompt || !prompt.trim()) {
+      console.error("CODE GENERATOR: Prompt is empty");
+
       return res.status(400).json({
         success: false,
         msg: "Prompt is empty or undefined",
       });
     }
 
-    // ==========================================
-    // 2. FIND USER
-    // ==========================================
+    const userDbStart = Date.now();
 
     const user = await userDetails.findById(userId);
 
+    console.log(
+      `User DB Time: ${Date.now() - userDbStart} ms`
+    );
+
     if (!user) {
+      console.error(`CODE GENERATOR: User not found - ${userId}`);
+
       return res.status(404).json({
         success: false,
         msg: "User not found",
       });
     }
 
-    // ==========================================
-    // 3. CHECK CREDITS
-    // ==========================================
-
     if (user.credits < 50) {
+      console.error(
+        `CODE GENERATOR: Insufficient credits - ${user.credits}`
+      );
+
       return res.status(400).json({
         success: false,
         msg: "Minimum 50 credits are required",
       });
     }
 
-    // ==========================================
-    // 4. AI PROMPT
-    // ==========================================
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error(
+        "CODE GENERATOR: OPENROUTER_API_KEY is missing"
+      );
+
+      return res.status(500).json({
+        success: false,
+        msg: "OPENROUTER_API_KEY is not configured",
+      });
+    }
 
     const message = `You are an AI Coding Interview Question Generator.
 
@@ -134,6 +144,10 @@ If a valid platform URL or logo URL cannot be confidently provided, treat the qu
 "redirectUrl": null,
 "platformImage": null
 
+==================================================
+QUESTION REQUIREMENTS
+==================================================
+
 3. Each question MUST contain:
 
 - title
@@ -147,10 +161,23 @@ If a valid platform URL or logo URL cannot be confidently provided, treat the qu
 - allowedLanguages
 - timeLimit
 - memoryLimit
-- testCases
 - starterCode
 - redirectUrl
 - platformImage
+
+DO NOT include:
+
+- testCases
+- expectedOutput
+- isHidden
+- hidden test cases
+- public test cases
+
+The generated JSON MUST NOT contain a "testCases" field anywhere.
+
+==================================================
+DIFFICULTY
+==================================================
 
 4. difficulty for each question MUST be exactly one of:
 
@@ -165,34 +192,33 @@ If a valid platform URL or logo URL cannot be confidently provided, treat the qu
 "hard"
 "mixed"
 
+==================================================
+LANGUAGES
+==================================================
+
 6. allowedLanguages MUST contain only:
 
 "cpp"
 "python"
 "javascript"
 
-7. Every question MUST contain at least 2 examples.
-
-8. Every question MUST contain at least 7 test cases.
-
-9. Every question MUST contain at least:
-
-- 2 public test cases
-- 5 hidden test cases
+Every question MUST support all three languages.
 
 ==================================================
 EXAMPLE REQUIREMENTS
 ==================================================
 
-10. Every example MUST contain:
+7. Every question MUST contain at least 2 examples.
+
+8. Every example MUST contain:
 
 - input
 - output
 - explanation
 
-11. Example input MUST always be present and MUST be a non-empty string.
+9. Example input MUST always be present and MUST be a non-empty string.
 
-12. Example output MUST always be present.
+10. Example output MUST always be present.
 
 An output value can be:
 
@@ -208,126 +234,58 @@ Do NOT omit the output field.
 
 Do NOT use null for output.
 
+11. Every explanation MUST be a non-empty string.
+
+12. Examples must correctly represent the problem and must follow the given constraints.
+
 ==================================================
-TEST CASE REQUIREMENTS
+QUESTION QUALITY
 ==================================================
 
-13. Every test case MUST contain:
+13. Do NOT include solutions.
 
-- input
-- expectedOutput
-- isHidden
+14. Do NOT include solution code.
 
-14. Every test case MUST have a non-empty input.
+15. Do NOT create duplicate questions.
 
-15. Every test case MUST have expectedOutput.
+16. Questions must be logically correct and solvable.
 
-An expectedOutput value can be:
+17. The description must clearly explain the problem.
 
-- string
-- number
-- boolean
-- array
-- object
+18. Constraints must be relevant to the problem.
 
-An empty array [] is VALID.
+19. inputFormat must clearly describe the input.
 
-Do NOT omit expectedOutput.
+20. outputFormat must clearly describe the expected output.
 
-Do NOT use null for expectedOutput.
+21. Examples must match the problem description.
 
-16. PUBLIC TEST CASES ARE ESPECIALLY IMPORTANT.
+22. timeLimit MUST be a positive number representing seconds.
 
-The first 2 or more public test cases MUST ALWAYS contain:
+23. memoryLimit MUST be a positive number representing MB.
 
-- input
-- expectedOutput
-- isHidden: false
+24. Do NOT fabricate platform information.
 
-Never generate a public test case with missing input.
+25. Do NOT fabricate URLs.
 
-Never generate a public test case with missing expectedOutput.
+26. redirectUrl and platformImage may be null.
 
-Before returning JSON, explicitly verify every public test case.
+27. If the question is original/custom, always use:
 
-17. Hidden test cases MUST contain:
-
-- input
-- expectedOutput
-- isHidden: true
-
-18. Hidden test cases MUST cover important edge cases.
-
-19. expectedOutput MUST be correct for the corresponding input.
-
-20. Do not create test cases that violate the constraints.
-
-21. isHidden MUST be either true or false.
-
-22. Do NOT leave any test case field undefined.
-
-23. Do NOT return incomplete test cases.
-
-24. Before returning the JSON, perform this internal validation:
-
-For every question:
-
-- examples.length >= 2
-- testCases.length >= 7
-- public test cases >= 2
-- hidden test cases >= 5
-
-For every example:
-
-- input exists
-- input is a non-empty string
-- output exists
-- explanation exists
-
-For every test case:
-
-- input exists
-- input is a non-empty string
-- expectedOutput exists
-- isHidden exists
-
-If any field is missing, FIX IT BEFORE RETURNING THE JSON.
-
-25. timeLimit MUST be a number in seconds.
-
-26. memoryLimit MUST be a number in MB.
-
-27. Do NOT include solutions.
-
-28. Do NOT include source code.
-
-29. Do NOT create duplicate questions.
-
-30. Do NOT use Markdown.
-
-31. Do NOT use a Markdown code block.
-
-32. Return ONLY valid JSON.
-
-33. Do NOT escape the complete JSON as a string.
-
-34. Do NOT leave any required field missing.
-
-35. Before returning the JSON, verify that EVERY example contains input, output, and explanation.
-
-36. Before returning the JSON, verify that EVERY test case contains input, expectedOutput, and isHidden.
+"redirectUrl": null,
+"platformImage": null
 
 ==================================================
 STARTER CODE
 ==================================================
 
-37. For every question, generate starterCode for:
+28. For every question, generate starterCode for:
 
 cpp
 python
 javascript
 
-38. The starter code must provide the complete function/class signature required to solve the problem.
+29. The starter code must provide the complete function/class signature required to solve the problem.
 
 The candidate should NOT need to write:
 
@@ -373,15 +331,55 @@ var twoSum = function(nums, target) {
 
 };
 
-Do not include the solution logic.
+Do not include solution logic.
 
 Only provide the function/class template.
+
+==================================================
+JSON OUTPUT REQUIREMENTS
+==================================================
+
+30. Return ONLY valid JSON.
+
+31. Do NOT return Markdown.
+
+32. Do NOT use a Markdown code block.
+
+33. Do NOT wrap the complete JSON inside a string.
+
+34. Do NOT add explanations outside the JSON.
+
+35. Do NOT add comments inside the JSON.
+
+36. Do NOT include any fields that are not part of the required structure.
+
+37. Before returning the JSON, internally verify:
+
+- Exactly ${quesNo} questions exist.
+- Every question contains all required fields.
+- Every question has at least 2 examples.
+- Every example contains input, output, and explanation.
+- Every example input is a non-empty string.
+- Every example output is present and is not null.
+- Every question contains cpp, python, and javascript starterCode.
+- No starterCode contains solution logic.
+- Every question has a valid difficulty.
+- Overall difficulty is valid.
+- allowedLanguages contains cpp, python, and javascript.
+- timeLimit is a positive number.
+- memoryLimit is a positive number.
+- No duplicate questions exist.
+- Platform URLs are not fabricated.
+- Original/custom questions have redirectUrl and platformImage set to null.
+- MOST IMPORTANT: No "testCases" field exists anywhere in the JSON.
+
+If any requirement is violated, FIX IT BEFORE RETURNING THE JSON.
 
 ==================================================
 JSON STRUCTURE
 ==================================================
 
-Return exactly this JSON structure:
+Return exactly this structure:
 
 {
   "questions": [
@@ -401,12 +399,12 @@ Return exactly this JSON structure:
         {
           "input": "5",
           "output": "120",
-          "explanation": "Explanation"
+          "explanation": "Explanation of the example"
         },
         {
           "input": "3",
           "output": "6",
-          "explanation": "Explanation"
+          "explanation": "Explanation of the example"
         }
       ],
       "allowedLanguages": [
@@ -420,95 +418,52 @@ Return exactly this JSON structure:
         "javascript": "var twoSum = function(nums, target) {\\n\\n};"
       },
       "timeLimit": 2,
-      "memoryLimit": 256,
-      "testCases": [
-        {
-          "input": "5",
-          "expectedOutput": "120",
-          "isHidden": false
-        },
-        {
-          "input": "3",
-          "expectedOutput": "6",
-          "isHidden": false
-        },
-        {
-          "input": "1",
-          "expectedOutput": "1",
-          "isHidden": true
-        },
-        {
-          "input": "0",
-          "expectedOutput": "0",
-          "isHidden": true
-        },
-        {
-          "input": "10",
-          "expectedOutput": "3628800",
-          "isHidden": true
-        },
-        {
-          "input": "2",
-          "expectedOutput": "2",
-          "isHidden": true
-        },
-        {
-          "input": "7",
-          "expectedOutput": "5040",
-          "isHidden": true
-        }
-      ]
+      "memoryLimit": 256
     }
   ],
   "difficulty": "medium"
-}`;
+}
 
-    // ==========================================
-    // 5. CHECK API KEY
-    // ==========================================
+FINAL REQUIREMENT:
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error("OPENROUTER_API_KEY is missing");
+Return ONLY the JSON object.
 
-      return res.status(500).json({
-        success: false,
-        msg: "OPENROUTER_API_KEY is not configured",
-      });
-    }
-
-    // ==========================================
-    // 6. CALL OPENROUTER
-    // ==========================================
+There MUST NOT be any "testCases" field anywhere in the response.`;
 
     let result;
+
+    const aiStart = Date.now();
 
     try {
       result = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
         {
           model: "openai/gpt-4o-mini",
-
           messages: [
             {
               role: "user",
               content: message,
             },
           ],
-
           response_format: {
             type: "json_object",
           },
         },
         {
           headers: OPENROUTER_HEADERS,
+          timeout: 120000,
         }
       );
+
+      console.log(
+        `AI Response Time: ${Date.now() - aiStart} ms`
+      );
     } catch (axiosError) {
-      console.error("========== OPENROUTER ERROR ==========");
-      console.error("Status:", axiosError.response?.status);
-      console.error("Data:", axiosError.response?.data);
-      console.error("Message:", axiosError.message);
-      console.error("======================================");
+      console.error(
+        "OPENROUTER ERROR:",
+        axiosError.response?.data?.error?.message ||
+          axiosError.message
+      );
 
       return res.status(502).json({
         success: false,
@@ -519,17 +474,12 @@ Return exactly this JSON structure:
       });
     }
 
-    // ==========================================
-    // 7. GET AI RESPONSE
-    // ==========================================
-
     const text =
       result?.data?.choices?.[0]?.message?.content;
 
     if (!text) {
       console.error(
-        "AI returned no content:",
-        result?.data
+        "CODE GENERATOR: AI returned empty content"
       );
 
       return res.status(502).json({
@@ -537,10 +487,6 @@ Return exactly this JSON structure:
         msg: "AI returned an empty response.",
       });
     }
-
-    // ==========================================
-    // 8. CLEAN AI RESPONSE
-    // ==========================================
 
     let cleanText = text.trim();
 
@@ -552,19 +498,15 @@ Return exactly this JSON structure:
         .trim();
     }
 
-    // ==========================================
-    // 9. PARSE JSON
-    // ==========================================
-
     let parsed;
 
     try {
       parsed = JSON.parse(cleanText);
     } catch (parseError) {
-      console.error("========== JSON PARSE ERROR ==========");
-      console.error("Message:", parseError.message);
-      console.error("AI Response:", cleanText);
-      console.error("======================================");
+      console.error(
+        "JSON PARSE ERROR:",
+        parseError.message
+      );
 
       return res.status(422).json({
         success: false,
@@ -572,27 +514,32 @@ Return exactly this JSON structure:
       });
     }
 
-    // ==========================================
-    // 10. BASIC RESPONSE VALIDATION
-    // ==========================================
-
     if (
       !parsed ||
       !Array.isArray(parsed.questions)
     ) {
       console.error(
-        "Invalid AI response: questions is not an array"
+        "CODE GENERATOR: Invalid questions array"
       );
 
       return res.status(500).json({
         success: false,
-        msg: "AI response does not contain valid questions.",
+        msg:
+          "AI response does not contain valid questions.",
       });
     }
 
-    // ==========================================
-    // 11. VALID VALUES
-    // ==========================================
+    if (parsed.questions.length !== quesNo) {
+      console.error(
+        `CODE GENERATOR: Expected ${quesNo} questions, received ${parsed.questions.length}`
+      );
+
+      return res.status(500).json({
+        success: false,
+        msg:
+          `AI must generate exactly ${quesNo} questions.`,
+      });
+    }
 
     const validDifficulties = [
       "easy",
@@ -613,31 +560,28 @@ Return exactly this JSON structure:
       "javascript",
     ];
 
-    if (!validDifficulties.includes(parsed.difficulty)) {
-      console.error(
-        "Invalid overall difficulty:",
+    if (
+      !validDifficulties.includes(
         parsed.difficulty
+      )
+    ) {
+      console.error(
+        "CODE GENERATOR: Invalid overall difficulty"
       );
 
       return res.status(500).json({
         success: false,
-        msg: "AI generated an invalid overall difficulty.",
+        msg:
+          "AI generated an invalid overall difficulty.",
       });
     }
-
-    // ==========================================
-    // 12. VALIDATE EACH QUESTION
-    // ==========================================
 
     for (
       const [questionIndex, question]
       of parsed.questions.entries()
     ) {
-      const questionNumber = questionIndex + 1;
-
-      // ==========================================
-      // REQUIRED FIELDS
-      // ==========================================
+      const questionNumber =
+        questionIndex + 1;
 
       if (
         typeof question.title !== "string" ||
@@ -649,18 +593,8 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: title is missing.`,
-        });
-      }
-
-      if (!question.difficulty) {
-        console.error(
-          `Question ${questionNumber}: difficulty missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: difficulty is missing.`,
+          msg:
+            `Question ${questionNumber}: title is missing.`,
         });
       }
 
@@ -670,13 +604,13 @@ Return exactly this JSON structure:
         )
       ) {
         console.error(
-          `Question ${questionNumber}: invalid difficulty`,
-          question.difficulty
+          `Question ${questionNumber}: invalid difficulty`
         );
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber} has invalid difficulty.`,
+          msg:
+            `Question ${questionNumber}: invalid difficulty.`,
         });
       }
 
@@ -690,7 +624,8 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: topic is missing.`,
+          msg:
+            `Question ${questionNumber}: topic is missing.`,
         });
       }
 
@@ -704,7 +639,8 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: description is missing.`,
+          msg:
+            `Question ${questionNumber}: description is missing.`,
         });
       }
 
@@ -713,12 +649,13 @@ Return exactly this JSON structure:
         question.constraints.length === 0
       ) {
         console.error(
-          `Question ${questionNumber}: invalid constraints`
+          `Question ${questionNumber}: constraints invalid`
         );
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: constraints are invalid.`,
+          msg:
+            `Question ${questionNumber}: constraints are invalid.`,
         });
       }
 
@@ -732,7 +669,8 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: inputFormat is missing.`,
+          msg:
+            `Question ${questionNumber}: inputFormat is missing.`,
         });
       }
 
@@ -746,13 +684,10 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber}: outputFormat is missing.`,
+          msg:
+            `Question ${questionNumber}: outputFormat is missing.`,
         });
       }
-
-      // ==========================================
-      // EXAMPLES
-      // ==========================================
 
       if (
         !Array.isArray(question.examples) ||
@@ -764,163 +699,19 @@ Return exactly this JSON structure:
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber} must have at least 2 examples.`,
-        });
-      }
-
-      // ==========================================
-      // LANGUAGES
-      // ==========================================
-
-      if (
-        !Array.isArray(question.allowedLanguages) ||
-        question.allowedLanguages.length === 0
-      ) {
-        console.error(
-          `Question ${questionNumber}: invalid allowedLanguages`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: allowedLanguages is invalid.`,
+          msg:
+            `Question ${questionNumber} must have at least 2 examples.`,
         });
       }
 
       for (
-        const language of question.allowedLanguages
+        const [
+          exampleIndex,
+          example,
+        ] of question.examples.entries()
       ) {
-        if (!validLanguages.includes(language)) {
-          console.error(
-            `Question ${questionNumber}: invalid language`,
-            language
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber} contains invalid language: ${language}`,
-          });
-        }
-      }
-
-      // ==========================================
-      // STARTER CODE
-      // ==========================================
-
-      if (
-        !question.starterCode ||
-        typeof question.starterCode !== "object"
-      ) {
-        console.error(
-          `Question ${questionNumber}: starterCode missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: starterCode is missing.`,
-        });
-      }
-
-      if (
-        typeof question.starterCode.cpp !== "string" ||
-        question.starterCode.cpp.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: C++ starterCode missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: C++ starterCode is missing.`,
-        });
-      }
-
-      if (
-        typeof question.starterCode.python !== "string" ||
-        question.starterCode.python.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: Python starterCode missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: Python starterCode is missing.`,
-        });
-      }
-
-      if (
-        typeof question.starterCode.javascript !== "string" ||
-        question.starterCode.javascript.trim() === ""
-      ) {
-        console.error(
-          `Question ${questionNumber}: JavaScript starterCode missing`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: JavaScript starterCode is missing.`,
-        });
-      }
-
-      // ==========================================
-      // TIME + MEMORY
-      // ==========================================
-
-      if (
-        typeof question.timeLimit !== "number" ||
-        question.timeLimit <= 0
-      ) {
-        console.error(
-          `Question ${questionNumber}: invalid timeLimit`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: timeLimit is invalid.`,
-        });
-      }
-
-      if (
-        typeof question.memoryLimit !== "number" ||
-        question.memoryLimit <= 0
-      ) {
-        console.error(
-          `Question ${questionNumber}: invalid memoryLimit`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: memoryLimit is invalid.`,
-        });
-      }
-
-      // ==========================================
-      // TEST CASES
-      // ==========================================
-
-      if (
-        !Array.isArray(question.testCases) ||
-        question.testCases.length < 7
-      ) {
-        console.error(
-          `Question ${questionNumber}: insufficient test cases`
-        );
-
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber} must have at least 7 test cases.`,
-        });
-      }
-
-      // ==========================================
-      // EXAMPLE VALIDATION
-      // ==========================================
-
-      for (
-        const [exampleIndex, example]
-        of question.examples.entries()
-      ) {
-        const exampleNumber = exampleIndex + 1;
+        const exampleNumber =
+          exampleIndex + 1;
 
         if (
           typeof example.input !== "string" ||
@@ -932,23 +723,14 @@ Return exactly this JSON structure:
 
           return res.status(500).json({
             success: false,
-            msg: `Question ${questionNumber}, Example ${exampleNumber}: input missing.`,
+            msg:
+              `Question ${questionNumber}, Example ${exampleNumber}: input missing.`,
           });
         }
 
-        // [] is valid
-        // 0 is valid
-        // false is valid
-        // "" is NOT valid
-        // null/undefined are NOT valid
-
         if (
           example.output === undefined ||
-          example.output === null ||
-          (
-            typeof example.output === "string" &&
-            example.output.trim() === ""
-          )
+          example.output === null
         ) {
           console.error(
             `Question ${questionNumber}, Example ${exampleNumber}: output missing`
@@ -956,7 +738,23 @@ Return exactly this JSON structure:
 
           return res.status(500).json({
             success: false,
-            msg: `Question ${questionNumber}, Example ${exampleNumber}: output missing.`,
+            msg:
+              `Question ${questionNumber}, Example ${exampleNumber}: output missing.`,
+          });
+        }
+
+        if (
+          typeof example.output === "string" &&
+          example.output.trim() === ""
+        ) {
+          console.error(
+            `Question ${questionNumber}, Example ${exampleNumber}: output empty`
+          );
+
+          return res.status(500).json({
+            success: false,
+            msg:
+              `Question ${questionNumber}, Example ${exampleNumber}: output cannot be empty.`,
           });
         }
 
@@ -970,161 +768,196 @@ Return exactly this JSON structure:
 
           return res.status(500).json({
             success: false,
-            msg: `Question ${questionNumber}, Example ${exampleNumber}: explanation missing.`,
+            msg:
+              `Question ${questionNumber}, Example ${exampleNumber}: explanation missing.`,
           });
         }
       }
 
-      // ==========================================
-      // TEST CASE VALIDATION
-      // ==========================================
-
-      for (
-        const [testIndex, testCase]
-        of question.testCases.entries()
+      if (
+        !Array.isArray(question.allowedLanguages) ||
+        question.allowedLanguages.length !== 3
       ) {
-        const testNumber = testIndex + 1;
-
-        // IMPORTANT:
-        // Public and hidden test cases both require input.
-        // Empty string is invalid.
-        // null/undefined are invalid.
-
-        if (
-          typeof testCase.input !== "string" ||
-          testCase.input.trim() === ""
-        ) {
-          console.error(
-            `Question ${questionNumber}, Test Case ${testNumber}: input missing`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Test Case ${testNumber}: input missing.`,
-          });
-        }
-
-        // [] is valid
-        // 0 is valid
-        // false is valid
-        // "" is NOT valid
-        // null/undefined are NOT valid
-
-        if (
-          testCase.expectedOutput === undefined ||
-          testCase.expectedOutput === null ||
-          (
-            typeof testCase.expectedOutput === "string" &&
-            testCase.expectedOutput.trim() === ""
-          )
-        ) {
-          console.error(
-            `Question ${questionNumber}, Test Case ${testNumber}: expectedOutput missing`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Test Case ${testNumber}: expectedOutput missing.`,
-          });
-        }
-
-        if (
-          typeof testCase.isHidden !== "boolean"
-        ) {
-          console.error(
-            `Question ${questionNumber}, Test Case ${testNumber}: isHidden invalid`
-          );
-
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Test Case ${testNumber}: isHidden must be boolean.`,
-          });
-        }
-      }
-
-      // ==========================================
-      // PUBLIC / HIDDEN TEST CASES
-      // ==========================================
-
-      const publicTests =
-        question.testCases.filter(
-          (testCase) =>
-            testCase.isHidden === false
-        );
-
-      const hiddenTests =
-        question.testCases.filter(
-          (testCase) =>
-            testCase.isHidden === true
-        );
-
-      if (publicTests.length < 2) {
         console.error(
-          `Question ${questionNumber}: insufficient public tests`
+          `Question ${questionNumber}: allowedLanguages invalid`
         );
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber} must have at least 2 public test cases.`,
+          msg:
+            `Question ${questionNumber}: allowedLanguages is invalid.`,
         });
       }
 
-      if (hiddenTests.length < 5) {
+      for (
+        const language
+        of question.allowedLanguages
+      ) {
+        if (
+          !validLanguages.includes(language)
+        ) {
+          console.error(
+            `Question ${questionNumber}: invalid language ${language}`
+          );
+
+          return res.status(500).json({
+            success: false,
+            msg:
+              `Question ${questionNumber}: invalid language ${language}.`,
+          });
+        }
+      }
+
+      if (
+        !question.starterCode ||
+        typeof question.starterCode !== "object"
+      ) {
         console.error(
-          `Question ${questionNumber}: insufficient hidden tests`
+          `Question ${questionNumber}: starterCode missing`
         );
 
         return res.status(500).json({
           success: false,
-          msg: `Question ${questionNumber} must have at least 5 hidden test cases.`,
+          msg:
+            `Question ${questionNumber}: starterCode is missing.`,
+        });
+      }
+
+      if (
+        typeof question.starterCode.cpp !== "string" ||
+        question.starterCode.cpp.trim() === ""
+      ) {
+        console.error(
+          `Question ${questionNumber}: C++ starterCode missing`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: C++ starterCode is missing.`,
+        });
+      }
+
+      if (
+        typeof question.starterCode.python !== "string" ||
+        question.starterCode.python.trim() === ""
+      ) {
+        console.error(
+          `Question ${questionNumber}: Python starterCode missing`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: Python starterCode is missing.`,
+        });
+      }
+
+      if (
+        typeof question.starterCode.javascript !==
+          "string" ||
+        question.starterCode.javascript.trim() === ""
+      ) {
+        console.error(
+          `Question ${questionNumber}: JavaScript starterCode missing`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: JavaScript starterCode is missing.`,
+        });
+      }
+
+      if (
+        typeof question.timeLimit !== "number" ||
+        question.timeLimit <= 0
+      ) {
+        console.error(
+          `Question ${questionNumber}: invalid timeLimit`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: timeLimit is invalid.`,
+        });
+      }
+
+      if (
+        typeof question.memoryLimit !== "number" ||
+        question.memoryLimit <= 0
+      ) {
+        console.error(
+          `Question ${questionNumber}: invalid memoryLimit`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: memoryLimit is invalid.`,
+        });
+      }
+
+      if (
+        question.redirectUrl !== null &&
+        typeof question.redirectUrl !== "string"
+      ) {
+        console.error(
+          `Question ${questionNumber}: invalid redirectUrl`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: redirectUrl is invalid.`,
+        });
+      }
+
+      if (
+        question.platformImage !== null &&
+        typeof question.platformImage !== "string"
+      ) {
+        console.error(
+          `Question ${questionNumber}: invalid platformImage`
+        );
+
+        return res.status(500).json({
+          success: false,
+          msg:
+            `Question ${questionNumber}: platformImage is invalid.`,
         });
       }
     }
 
-    // ==========================================
-    // 13. PREPARE MONGODB DATA
-    // ==========================================
-
-    const quesDetails = parsed.questions.map(
-      (question) => ({
-        title: question.title,
-        difficulty: question.difficulty,
-        topic: question.topic,
-        redirectUrl: question?.redirectUrl || "",
-        platformImage: question?.platformImage || "",
-        description: question.description,
-        constraints: question.constraints,
-        inputFormat: question.inputFormat,
-        outputFormat: question.outputFormat,
-
-        // Keep output as its original type.
-        // [] remains [].
-        examples: question.examples,
-
-        allowedLanguages:
-          question.allowedLanguages,
-
-        // ==========================================
-        // STARTER CODE
-        // ==========================================
-
-        starterCode: {
-          cpp: question.starterCode.cpp,
-          python: question.starterCode.python,
-          javascript: question.starterCode.javascript,
-        },
-
-        timeLimit: question.timeLimit,
-        memoryLimit: question.memoryLimit,
-
-        // Keep expectedOutput as its original type.
-        testCases: question.testCases,
-      })
-    );
-
-    // ==========================================
-    // 14. CREATE DOCUMENT
-    // ==========================================
+    const quesDetails =
+      parsed.questions.map(
+        (question) => ({
+          title: question.title,
+          difficulty: question.difficulty,
+          topic: question.topic,
+          redirectUrl:
+            question.redirectUrl || "",
+          platformImage:
+            question.platformImage || "",
+          description: question.description,
+          constraints: question.constraints,
+          inputFormat: question.inputFormat,
+          outputFormat: question.outputFormat,
+          examples: question.examples,
+          allowedLanguages:
+            question.allowedLanguages,
+          starterCode: {
+            cpp: question.starterCode.cpp,
+            python:
+              question.starterCode.python,
+            javascript:
+              question.starterCode.javascript,
+          },
+          timeLimit: question.timeLimit,
+          memoryLimit: question.memoryLimit,
+        })
+      );
 
     const codeQuestion =
       new CodingDetails({
@@ -1136,38 +969,24 @@ Return exactly this JSON structure:
         codingDetails: quesDetails,
       });
 
-    // ==========================================
-    // 15. SAVE TO MONGODB
-    // ==========================================
-
     try {
       await codeQuestion.save();
     } catch (mongoError) {
       console.error(
-        "========== MONGODB SAVE ERROR =========="
-      );
-      console.error("Name:", mongoError.name);
-      console.error("Message:", mongoError.message);
-      console.error("Errors:", mongoError.errors);
-      console.error("Code:", mongoError.code);
-      console.error(
-        "========================================"
+        "MONGODB SAVE ERROR:",
+        mongoError.message
       );
 
       throw mongoError;
     }
 
-    // ==========================================
-    // 16. DEDUCT CREDITS
-    // ==========================================
-
     user.credits -= 50;
 
     await user.save();
 
-    // ==========================================
-    // 17. SUCCESS
-    // ==========================================
+    console.log(
+      `Total Coding Generation Time: ${Date.now() - totalStart} ms`
+    );
 
     return res.status(200).json({
       success: true,
@@ -1175,31 +994,32 @@ Return exactly this JSON structure:
       data: parsed,
       codingID: codeQuestion._id.toString(),
     });
-
   } catch (error) {
     console.error(
-      "========== CODE GENERATOR ERROR =========="
+      "CODE GENERATOR ERROR:",
+      error.message
     );
-    console.error("Name:", error.name);
-    console.error("Message:", error.message);
-    console.error("Code:", error.code);
 
-    if (error.name === "ValidationError") {
+    if (
+      error.name === "ValidationError"
+    ) {
       console.error(
-        "Mongoose validation errors:",
-        error.errors
+        "MONGOOSE VALIDATION ERROR:",
+        Object.keys(error.errors || {})
       );
 
       return res.status(400).json({
         success: false,
-        msg: "Generated coding question contains invalid data.",
-        details: Object.keys(error.errors || {}),
+        msg:
+          "Generated coding question contains invalid data.",
+        details:
+          Object.keys(error.errors || {}),
       });
     }
 
     if (error.code === 11000) {
       console.error(
-        "MongoDB duplicate key error:",
+        "MONGODB DUPLICATE KEY:",
         error.keyValue
       );
 
@@ -1209,11 +1029,6 @@ Return exactly this JSON structure:
       });
     }
 
-    console.error("Stack:", error.stack);
-    console.error(
-      "=========================================="
-    );
-
     return res.status(500).json({
       success: false,
       msg:
@@ -1222,10 +1037,6 @@ Return exactly this JSON structure:
     });
   }
 };
-
-// ==========================================
-// GET CODING QUESTION BY ID
-// ==========================================
 
 const codeQuesDetail = async (req, res) => {
   const { id } = req.params;
@@ -1250,15 +1061,15 @@ const codeQuesDetail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Coding question fetched successfully",
+      message:
+        "Coding question fetched successfully",
       details: codingQuestionDetails,
       codingId: id,
     });
-
   } catch (error) {
     console.error(
       "CODE QUESTION DETAIL ERROR:",
-      error
+      error.message
     );
 
     return res.status(500).json({

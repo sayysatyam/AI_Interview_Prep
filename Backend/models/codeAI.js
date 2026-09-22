@@ -95,22 +95,7 @@ const codingQuestionSchema = new mongoose.Schema({
     // TEST CASES
     // ==========================================
 
-    testCases: [{
-        input: {
-            type: String,
-            required: true
-        },
 
-        expectedOutput: {
-            type: mongoose.Schema.Types.Mixed,
-            required: true
-        },
-
-        isHidden: {
-            type: Boolean,
-            default: true
-        }
-    }],
 
 
     // ==========================================
