@@ -4,7 +4,7 @@ const { verifyToken } = require('../MiddleWare/verify');
 const upload = require('../MiddleWare/multer');
 const { handleResumeUpload, generateQuestion, submitAnswer, calculate, getHistory, getParticularHistory } = require('../controllers/HandleAI');
 const { codeQuesGenerator, codeQuesDetail } = require('../controllers/codeAI');
-const { codeSubmitAI } = require('../controllers/codeSubmitAi');
+const { codeSubmitAI, submitCode } = require('../controllers/codeSubmitAi');
 
 const route = express.Router();
 
@@ -26,5 +26,5 @@ route.get("/getHistory",verifyToken,getHistory);
 route.get("/historyStats/:hisId",verifyToken,getParticularHistory);
 route.post("/code",verifyToken,codeQuesGenerator);
 route.get("/startCoding/:id",verifyToken,codeQuesDetail);
-route.post("/submitCode",verifyToken,codeSubmitAI);
+route.post("/submitCode",verifyToken,submitCode);
 module.exports = route;

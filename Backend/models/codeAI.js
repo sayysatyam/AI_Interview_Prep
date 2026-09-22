@@ -1,293 +1,277 @@
 const mongoose = require("mongoose");
 
-
 // ==========================================
 // CODING QUESTION SCHEMA
 // ==========================================
 
 const codingQuestionSchema = new mongoose.Schema({
-
-    title: {
-        type: String,
-        required: true
-    },
-
-    difficulty: {
-        type: String,
-        enum: ["easy", "medium", "hard"],
-        required: true
-    },
-        redirectUrl : {
-            type:String
-        },
-        platformImage : {
-            type:String
-        },
-    topic: {
-        type: String,
-        required: true
-    },
-
-    description: {
-        type: String,
-        required: true
-    },
-
-    constraints: [{
-        type: String
-    }],
-
-    inputFormat: {
-        type: String,
-        required: true
-    },
-
-    outputFormat: {
-        type: String,
-        required: true
-    },
-
-    examples: [{
-        input: {
-            type: String,
-            required: true
-        },
-
-        output: {
-            type: mongoose.Schema.Types.Mixed,
-            required: true
-        },
-
-        explanation: {
-            type: String
-        }
-    }],
-
-    allowedLanguages: [{
-        type: String,
-        enum: ["cpp", "python", "javascript"]
-    }],
-    
-    memoryLimit: {
-        type: Number,
-        default: 256
-    },
-
-    starterCode: {
-  cpp: {
+  title: {
     type: String,
-    default: ""
+    required: true,
   },
 
-  python: {
+  difficulty: {
     type: String,
-    default: ""
+    enum: ["easy", "medium", "hard"],
+    required: true,
+  },
+  redirectUrl: {
+    type: String,
+  },
+  platformImage: {
+    type: String,
+  },
+  topic: {
+    type: String,
+    required: true,
   },
 
-  javascript: {
+  description: {
     type: String,
-    default: ""
-  }
-},
+    required: true,
+  },
 
-
-    // ==========================================
-    // TEST CASES
-    // ==========================================
-
-
-
-
-    // ==========================================
-    // STUDENT SUBMISSION
-    // ==========================================
-
-    userCode: {
-        type: String
+  constraints: [
+    {
+      type: String,
     },
+  ],
 
-    language: {
+  inputFormat: {
+    type: String,
+    required: true,
+  },
+
+  outputFormat: {
+    type: String,
+    required: true,
+  },
+
+  examples: [
+    {
+      input: {
         type: String,
-        enum: ["cpp", "python", "javascript"]
-    },
+        required: true,
+      },
 
-    testsPassed: {
-        type: Number,
-        default: 0
-    },
+      output: {
+        type: mongoose.Schema.Types.Mixed,
+        required: true,
+      },
 
-    totalTests: {
-        type: Number,
-        default: 0
-    },
-
-    executionTime: {
-        type: Number,
-        default: 0
-    },
-
-    memoryUsed: {
-        type: Number,
-        default: 0
-    },
-
-
-    // ==========================================
-    // SUBMISSION STATUS
-    // ==========================================
-
-    status: {
+      explanation: {
         type: String,
+      },
+    },
+  ],
+  testCases: [
+    {
+      testCaseNumber: {
+        type: Number,
+      },
+      input: {
+        type: String,
+      },
+      expectedOutput: {
+        type: mongoose.Schema.Types.Mixed,
+      },
+      isHidden: {
+        type: Boolean,
+      },
+    },
+  ],
+  allowedLanguages: [
+    {
+      type: String,
+      enum: ["cpp", "python", "javascript"],
+    },
+  ],
 
-        enum: [
-            "pending",
-            "running",
-            "accepted",
-            "wrong_answer",
-            "compilation_error",
-            "runtime_error",
-            "time_limit"
-        ],
+  memoryLimit: {
+    type: Number,
+    default: 256,
+  },
 
-        default: "pending"
+  starterCode: {
+    cpp: {
+      type: String,
+      default: "",
     },
 
+    python: {
+      type: String,
+      default: "",
+    },
 
-    // ==========================================
-    // AI EVALUATION
-    // ==========================================
+    javascript: {
+      type: String,
+      default: "",
+    },
+  },
 
-    evaluation: {
+  // ==========================================
+  // TEST CASES
+  // ==========================================
 
-        score: {
-            type: Number,
-            default: 0
-        },
+  // ==========================================
+  // STUDENT SUBMISSION
+  // ==========================================
 
-        correctness: {
-            type: Number,
-            default: 0
-        },
+  userCode: {
+    type: String,
+  },
 
-        algorithm: {
-            type: Number,
-            default: 0
-        },
+  language: {
+    type: String,
+    enum: ["cpp", "python", "javascript"],
+  },
 
-        codeQuality: {
-            type: Number,
-            default: 0
-        },
+  testsPassed: {
+    type: Number,
+    default: 0,
+  },
 
-        edgeCases: {
-            type: Number,
-            default: 0
-        },
+  totalTests: {
+    type: Number,
+    default: 0,
+  },
 
-        timeComplexity: {
-            type: String
-        },
+  executionTime: {
+    type: Number,
+    default: 0,
+  },
 
-        spaceComplexity: {
-            type: String
-        },
+  memoryUsed: {
+    type: Number,
+    default: 0,
+  },
 
-        feedback: {
-            type: String
-        }
-    }
+  // ==========================================
+  // SUBMISSION STATUS
+  // ==========================================
 
+  status: {
+    type: String,
+
+    enum: [
+      "pending",
+      "running",
+      "accepted",
+      "wrong_answer",
+      "compilation_error",
+      "runtime_error",
+      "time_limit",
+    ],
+
+    default: "pending",
+  },
+
+  // ==========================================
+  // AI EVALUATION
+  // ==========================================
+
+  evaluation: {
+    score: {
+      type: Number,
+      default: 0,
+    },
+
+    correctness: {
+      type: Number,
+      default: 0,
+    },
+
+    algorithm: {
+      type: Number,
+      default: 0,
+    },
+
+    codeQuality: {
+      type: Number,
+      default: 0,
+    },
+
+    edgeCases: {
+      type: Number,
+      default: 0,
+    },
+
+    timeComplexity: {
+      type: String,
+    },
+
+    spaceComplexity: {
+      type: String,
+    },
+
+    feedback: {
+      type: String,
+    },
+  },
 });
-
 
 // ==========================================
 // CODING ROUND SCHEMA
 // ==========================================
 
-const CodingSchema = new mongoose.Schema({
-
+const CodingSchema = new mongoose.Schema(
+  {
     createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
 
-        type: mongoose.Schema.Types.ObjectId,
+      ref: "userDetails",
 
-        ref: "userDetails",
-
-        required: true
-
+      required: true,
     },
-
 
     // ==========================================
     // USER'S ORIGINAL PROMPT
     // ==========================================
 
     prompt: {
+      type: String,
 
-        type: String,
-
-        required: true
-
+      required: true,
     },
-
 
     // ==========================================
     // ROUND INFORMATION
     // ==========================================
 
-
     difficulty: {
+      type: String,
 
-        type: String,
-
-        enum: ["easy", "medium", "hard", "mixed"]
-
+      enum: ["easy", "medium", "hard", "mixed"],
     },
-
 
     numberOfQuestions: {
+      type: Number,
 
-        type: Number,
-
-        default: 5
-
+      default: 5,
     },
-
 
     // ==========================================
     // ROUND STATUS
     // ==========================================
 
     status: {
+      type: String,
 
-        type: String,
+      enum: ["Not Started", "In Progress", "Completed"],
 
-        enum: [
-            "Not Started",
-            "In Progress",
-            "Completed"
-        ],
-
-        default: "Not Started"
-
+      default: "Not Started",
     },
-
-
 
     // ==========================================
     // TIME
     // ==========================================
     startedAt: {
-
-        type: Date
-
+      type: Date,
     },
 
     completedAt: {
-
-        type: Date
-
+      type: Date,
     },
-
 
     // ==========================================
     // QUESTIONS
@@ -295,55 +279,39 @@ const CodingSchema = new mongoose.Schema({
 
     codingDetails: [codingQuestionSchema],
 
-
     // ==========================================
     // FINAL EVALUATION
     // ==========================================
 
     average: {
+      type: Number,
 
-        type: Number,
-
-        default: 0
-
+      default: 0,
     },
 
     finalEvaluation: {
+      score: {
+        type: Number,
 
-        score: {
+        default: 0,
+      },
 
-            type: Number,
+      strengths: {
+        type: String,
+      },
 
-            default: 0
+      weaknesses: {
+        type: String,
+      },
 
-        },
-
-        strengths: {
-
-            type: String
-
-        },
-
-        weaknesses: {
-
-            type: String
-
-        },
-
-        recommendation: {
-
-            type: String
-
-        }
-
-    }
-
-}, { timestamps: true });
-
-
-const CodingDetails = mongoose.model(
-    "CodingDetails",
-    CodingSchema
+      recommendation: {
+        type: String,
+      },
+    },
+  },
+  { timestamps: true },
 );
+
+const CodingDetails = mongoose.model("CodingDetails", CodingSchema);
 
 module.exports = CodingDetails;

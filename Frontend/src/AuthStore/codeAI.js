@@ -49,13 +49,12 @@ export const codeAIStore = create((set) => ({
       });
         }
     },
-    codeSubmitAI : async(code,quesTitle,quesDescription,quesConstraints,quesInput,quesOutput,codeLang) =>{
+    codeSubmitAI : async(codingId, questionIndex, language, code) =>{
          set({isLoadingCodingQuestion  : true , error:null});
          try {
             const res = await axios.get(
         `${API_URL}/submitCode`,{
-            code,quesTitle,quesDescription,quesConstraints,quesInput,quesOutput,codeLang
-        }
+            codingId,questionIndex,language,code}
       );
             const resultAfterSubmit = res?.data?.data;
             set({isLoadingCodingQuestion :false,error:null,resultAfterSubmit});
