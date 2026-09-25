@@ -49,22 +49,29 @@ export const codeAIStore = create((set) => ({
       });
         }
     },
-    codeSubmitAI : async(codingId, questionIndex, language, code) =>{
-         set({isLoadingCodingQuestion  : true , error:null});
-         try {
-            const res = await axios.get(
-        `${API_URL}/submitCode`,{
-            codingId,questionIndex,language,code}
-      );
-            const resultAfterSubmit = res?.data?.data;
-            set({isLoadingCodingQuestion :false,error:null,resultAfterSubmit});
-            return resultAfterSubmit;
-         } catch (error) {
-            set({
-        error: error.response?.data?.msg || "Something Went Wrong",
-        isLoadingCodingQuestion : false,
-        success: false,
-      });
-         }
-    }
+    codeSubmitAI: async (codingId, questionIndex, language, code) => {
+  console.log({ codingId, questionIndex, language, code });
+  set({ isLoadingCodingQuestion: true, error: null });
+  
+  try {
+    const res = await axios.post(`${API_URL}/submitCode`, {
+      codingId,
+      questionIndex,
+      language,
+      code,
+    });
+    
+    // FIX: Axios puts the JSON response directly in `res.data`
+    const resultAfterSubmit = res?.data; 
+    
+    set({ isLoadingCodingQuestion: false, error: null, resultAfterSubmit });
+    return resultAfterSubmit;
+  } catch (error) {
+    set({
+      error: error.response?.data?.msg || "Something Went Wrong",
+      isLoadingCodingQuestion: false,
+      success: false,
+    });
+  }
+}
 }));

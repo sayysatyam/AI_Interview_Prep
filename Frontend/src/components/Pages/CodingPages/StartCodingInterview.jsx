@@ -20,7 +20,7 @@ import {
 import { codeAIStore } from "../../../AuthStore/codeAI";
 
 const StartCodingInterview = () => {
-  const { codeQuesbyID, isLoadingCodingQuestion, codeQuestionData, error } =
+  const { codeQuesbyID, isLoadingCodingQuestion, codeQuestionData, error,codeSubmitAI,resultAfterSubmit } =
     codeAIStore();
   const { id } = useParams();
   const editorRef = useRef(null);
@@ -135,6 +135,35 @@ const StartCodingInterview = () => {
     setActiveTab("description");
   }, [question, language]);
 
+    // =========================================================
+
+ const handleRun = async () => {
+  if (!id || !question || isRunning) return;
+
+  try {
+    setIsRunning(true);
+    setTestResult(null);
+
+    const res = await codeSubmitAI(id, currentQuestion, language, code);
+
+    if (res) {
+      setTestResult(res);
+      console.log(testResult);
+    }
+  } catch (error) {
+    console.error("Submission error:", error);
+
+    setTestResult({
+      success: false,
+      status: "Server Error",
+      failedTestCase: 1, // Assumes it failed immediately
+      message: error.response?.data?.msg || "Failed to submit code.",
+    });
+  } finally {
+    setIsRunning(false);
+  }
+};
+
   // =========================================================
   // MONACO EDITOR MOUNT
   // =========================================================
@@ -215,23 +244,23 @@ const StartCodingInterview = () => {
     }
   };
 
-  const handleSubmit = () => {
-    if (!question || isRunning) return;
+  // const handleSubmit = () => {
+  //   if (!question || isRunning) return;
 
-    setIsRunning(true);
-    setTestResult(null);
+  //   setIsRunning(true);
+  //   setTestResult(null);
 
-    setTimeout(() => {
-      setIsRunning(false);
+  //   setTimeout(() => {
+  //     setIsRunning(false);
 
-      setTestResult({
-        success: true,
-        passed: 0,
-        total: question?.testCases?.length || 0,
-        message: "Submission API is not connected yet.",
-      });
-    }, 1200);
-  };
+  //     setTestResult({
+  //       success: true,
+  //       passed: 0,
+  //       total: question?.testCases?.length || 0,
+  //       message: "Submission API is not connected yet.",
+  //     });
+  //   }, 1200);
+  // };
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);
@@ -241,6 +270,16 @@ const StartCodingInterview = () => {
       editorRef.current?.focus();
     });
   };
+
+  useEffect(()=>{
+    console.log("Result is : ",resultAfterSubmit);
+  },[resultAfterSubmit]);
+
+  //     console.log(codeQuestionData?.codingDetails[0]?.testCases);
+  // {codeQuestionData?.codingDetails.map((idx,val)=>{
+  //     console.log(val?.testCases);
+  // })}
+
 
   // =========================================================
   // RENDER HELPERS
@@ -709,7 +748,7 @@ const StartCodingInterview = () => {
 
           {/* MONACO EDITOR */}
 
-          <div className="flex-1 min-h-0 relative">
+          <div className="flex-1 min-h-10 relative">
             <Editor
               height="100%"
               language={getMonacoLanguage(language)}
@@ -759,36 +798,47 @@ const StartCodingInterview = () => {
 
           {/* TEST RESULT OVERLAY */}
 
-          {testResult && (
-            <div className="shrink-0 bg-[#2C2C2E] border-t border-white/5 p-4 animate-in slide-in-from-bottom-4 duration-300">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                    testResult.success
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "bg-rose-500/20 text-rose-400"
-                  }`}
-                >
-                  {testResult.success ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
-                    <XCircle className="w-5 h-5" />
-                  )}
-                </div>
+        {/* TEST RESULT OVERLAY */}
+{testResult && (
+  <div className="shrink-0 bg-[#2C2C2E] border-t border-white/5 p-4 animate-in slide-in-from-bottom-4 duration-300">
+    <div className="flex items-center gap-4">
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+          testResult.success
+            ? "bg-emerald-500/20 text-emerald-400"
+            : "bg-rose-500/20 text-rose-400"
+        }`}
+      >
+        {testResult.success ? (
+          <CheckCircle2 className="w-5 h-5" />
+        ) : (
+          <XCircle className="w-5 h-5" />
+        )}
+      </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-white tracking-tight">
-                    {testResult.message}
-                  </h4>
+      <div>
+        {/* Render the status (e.g., "Accepted", "Wrong Answer", "Runtime Error") */}
+        <h4 className="text-sm font-semibold text-white tracking-tight">
+          {testResult.status === "Accepted" ? testResult.message : testResult.status}
+        </h4>
 
-                  <p className="text-xs text-white/50 mt-0.5 font-medium">
-                    {testResult.passed} / {testResult.total} test
-                    cases passed
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Calculate passed/total dynamically based on failure point */}
+        <p className="text-xs text-white/50 mt-0.5 font-medium">
+          {testResult.success
+            ? `${testResult.passedTestCases} / ${testResult.totalTestCases} test cases passed`
+            : `${(testResult.failedTestCase || 1) - 1} / ${question?.testCases?.length || 0} test cases passed`}
+        </p>
+        
+        {/* If it failed and there is a specific error message (like a compile error), show it */}
+        {!testResult.success && testResult.message && (
+          <p className="text-[11px] text-rose-400 mt-1.5 font-mono line-clamp-2" title={testResult.message}>
+            {testResult.message}
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
           {/* ACTION FOOTER */}
 
@@ -803,7 +853,7 @@ const StartCodingInterview = () => {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={handleSubmit}
+                onClick={handleRun}
                 disabled={isRunning}
                 className="flex items-center gap-2 px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold disabled:opacity-50 transition-all shadow-md"
               >

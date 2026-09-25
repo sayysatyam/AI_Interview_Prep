@@ -75,90 +75,39 @@ const codeQuesGenerator = async (req, res) => {
 
     const message = `You are an AI Coding Interview Question Generator.
 
-Your task is to generate a coding round based on the user's request.
-
 USER REQUEST:
 ${prompt}
 
 Generate exactly ${quesNo} coding questions.
 
-STRICT RULES:
+==================================================
+1. GENERAL REQUIREMENTS
+==================================================
 
-1. Generate exactly ${quesNo} questions.
+Generate exactly ${quesNo} unique, logically correct, solvable coding questions.
 
-2. Questions can be based on common DSA/coding problem patterns from platforms such as LeetCode, HackerRank, CodeChef, etc. They are NOT required to belong to any specific platform.
-
-The generated questions may be:
+Questions may be:
 - Original/custom
 - Platform-inspired
-- Associated with a known coding platform
+- Platform-associated
 
-==================================================
-PLATFORM MIX REQUIREMENT
-==================================================
+When ${quesNo} > 1, include a reasonable mixture of original/custom and platform-associated questions whenever possible.
 
-The coding round MUST contain a mixed combination of questions.
+NEVER fabricate platform information.
 
-Do NOT make all questions platform-associated.
+For verified platform questions:
+"redirectUrl": "verified URL",
+"platformImage": "verified logo URL"
 
-Do NOT make all questions original.
-
-Whenever the number of questions allows it, include a mixture of:
-- Questions associated with known coding platforms.
-- Original/custom questions that are not associated with any platform.
-
-For example, if generating 5 questions, a possible distribution is:
-
-- Question 1 → LeetCode
-- Question 2 → Original/custom
-- Question 3 → CodeChef
-- Question 4 → Original/custom
-- Question 5 → HackerRank
-
-Another valid distribution could be:
-
-- Question 1 → Original/custom
-- Question 2 → LeetCode
-- Question 3 → Original/custom
-- Question 4 → Codeforces
-- Question 5 → Original/custom
-
-The exact distribution can vary.
-
-IMPORTANT:
-
-Do not force every question to have a platform.
-
-Do not force every question to be original.
-
-The round should feel like a realistic coding assessment containing both platform-associated/platform-inspired questions and custom questions.
-
-For a platform-associated question:
-
-"redirectUrl": "verified problem URL",
-"platformImage": "verified direct platform logo URL"
-
-For an original/custom question:
-
-"redirectUrl": null,
-"platformImage": null
-
-NEVER fabricate a platform association.
-
-NEVER create a fake redirectUrl.
-
-NEVER create a fake platformImage.
-
-If a valid platform URL or logo URL cannot be confidently provided, treat the question as an original/custom question and set:
-
+For original/custom or unverified platform questions:
 "redirectUrl": null,
 "platformImage": null
 
 ==================================================
-QUESTION REQUIREMENTS
+2. REQUIRED FIELDS
 ==================================================
 
-3. Each question MUST contain:
+Every question MUST contain:
 
 - title
 - difficulty
@@ -170,80 +119,174 @@ QUESTION REQUIREMENTS
 - examples
 - testCases
 - allowedLanguages
+- starterCode
 - timeLimit
 - memoryLimit
-- starterCode
 - redirectUrl
 - platformImage
 
 ==================================================
-TEST CASE REQUIREMENTS
+3. CONSTRAINTS
 ==================================================
 
-Each question MUST contain a "testCases" field.
+constraints MUST be a non-empty array of relevant, accurate strings.
 
-"testCases" MUST be an array.
+Constraints MUST correctly describe the valid input space.
 
-The number of test cases is flexible.
+They MUST be consistent with:
+- description
+- inputFormat
+- examples
+- testCases
 
-DO NOT enforce an exact number of test cases.
+If n represents the number of elements, every generated input MUST contain exactly n elements.
 
-Try to generate more than 5 test cases whenever reasonable for the problem.
+If dimensions/counts are specified, the actual input MUST match them exactly.
 
-The number of test cases may be different for different questions.
+Every example and test case MUST satisfy ALL constraints.
 
-Each test case MUST contain:
+==================================================
+4. EXAMPLES
+==================================================
+
+Every question MUST contain at least 2 examples.
+
+Every example MUST contain:
+
+- input
+- output
+- explanation
+
+Example input MUST:
+- be a non-empty string
+- follow inputFormat exactly
+- satisfy all constraints
+
+Example output MUST:
+- always be a string
+- be the correct output for that exact input
+- follow outputFormat exactly
+- never be null
+
+NEVER guess or copy example output.
+
+==================================================
+5. TEST CASES
+==================================================
+
+testCases MUST be an array.
+
+The number of test cases is flexible. Do NOT enforce a fixed count.
+
+Generate more than 5 when reasonable.
+
+Every test case MUST contain:
 
 - testCaseNumber
 - input
 - expectedOutput
 - isHidden
 
-For public test cases:
+Rules:
 
-"isHidden": false
+- testCaseNumber → number
+- input → string
+- expectedOutput → string
+- isHidden → boolean
 
-For hidden test cases:
+input MUST be valid raw stdin that can be directly passed to Judge0.
 
-"isHidden": true
-
-The input MUST be a string.
-
-An empty string "" is VALID input when an empty input is valid for the problem.
-
-Do NOT reject empty input.
-
-The expectedOutput MUST be present.
-
-expectedOutput may be:
-
-- string
-- number
-- boolean
-- array
-- object
-
-An empty string "" is VALID when an empty output is valid for the problem.
-
-null and undefined are NOT valid expectedOutput values.
-
-Test cases MUST be valid according to the problem description and constraints.
-
-expectedOutput MUST represent the correct output for the given input.
-
-Do NOT include solution code inside testCases.
+Do NOT use JSON, programming-language syntax, labels, comments, or explanations unless explicitly required by inputFormat.
 
 ==================================================
-DIFFICULTY
+6. CRITICAL INPUT/OUTPUT VALIDATION
 ==================================================
 
-4. difficulty for each question MUST be exactly one of:
+This is mandatory.
+
+For EVERY example and EVERY test case, independently verify:
+
+constraints
+    ↓
+inputFormat
+    ↓
+exact input
+    ↓
+problem rules
+    ↓
+correct result
+    ↓
+outputFormat
+    ↓
+output / expectedOutput
+
+The input and expectedOutput MUST be verified as a pair.
+
+For every input:
+
+- Verify all required values exist.
+- Verify no values are missing or extra.
+- Verify n/counts/dimensions match the actual input.
+- Verify every value satisfies its constraints.
+- Verify the input follows inputFormat exactly.
+
+For every output:
+
+- Independently solve/derive the result for that exact input.
+- Do NOT guess the result.
+- Do NOT copy the result from another case.
+- Do NOT assume a generated result is correct.
+- Convert the result to the exact stdout format.
+- expectedOutput MUST be the exact correct stdout string.
+
+A valid input does NOT mean its expectedOutput is correct.
+
+==================================================
+7. MANDATORY RE-VERIFICATION
+==================================================
+
+Before returning the JSON, perform a final independent verification of EVERY example and EVERY test case.
+
+For each one, verify:
+
+1. Input is valid.
+2. Input satisfies constraints.
+3. Input follows inputFormat.
+4. The problem is solved using that exact input.
+5. Output is correctly calculated.
+6. Output follows outputFormat.
+7. Input and output are consistent.
+
+If ANY error is found, FIX it and verify again.
+
+Do NOT return the JSON until all input/output pairs are verified.
+
+==================================================
+8. TEST CASE COVERAGE
+==================================================
+
+When reasonable, include:
+
+- minimum valid case
+- normal case
+- boundary case
+- edge case
+- duplicate/special cases when relevant
+- large or near-maximum valid case when reasonable
+
+NEVER violate constraints to create an edge case.
+
+==================================================
+9. DIFFICULTY
+==================================================
+
+Question difficulty MUST be one of:
 
 "easy"
 "medium"
 "hard"
 
-5. Overall difficulty MUST be exactly one of:
+Overall difficulty MUST be one of:
 
 "easy"
 "medium"
@@ -251,283 +294,99 @@ DIFFICULTY
 "mixed"
 
 ==================================================
-LANGUAGES
+10. LANGUAGES
 ==================================================
 
-6. allowedLanguages MUST contain only:
+Every question MUST support exactly:
 
 "cpp"
 "python"
 "javascript"
 
-Every question MUST support all three languages.
-
 ==================================================
-CONSTRAINT REQUIREMENTS
+11. STARTER CODE
 ==================================================
 
-7. constraints MUST ALWAYS be a non-empty array.
+Generate executable starterCode for:
 
-8. constraints MUST contain at least 1 constraint.
+- cpp
+- python
+- javascript
 
-9. Every constraint MUST be a non-empty string.
+Starter code MUST:
 
-10. NEVER return:
+- read from stdin
+- write to stdout
+- contain the required entry point
+- contain NO solution logic
+- NOT use class Solution
+- NOT use LeetCode-style wrappers
 
-"constraints": []
+C++ MUST contain main().
 
-11. NEVER return:
-
-"constraints": null
-
-12. NEVER omit the constraints field.
-
-13. NEVER return constraints as a single string.
-
-14. Constraints MUST be relevant to the problem.
-
-For example:
-
-"constraints": [
-  "1 <= n <= 100000",
-  "1 <= nums[i] <= 1000000000"
-]
-
-Even if a problem appears simple, provide meaningful constraints describing valid input size, value ranges, or other relevant limits.
-
-==================================================
-EXAMPLE REQUIREMENTS
-==================================================
-
-15. Every question MUST contain at least 2 examples.
-
-16. Every example MUST contain:
-
-- input
-- output
-- explanation
-
-17. Example input MUST always be present and MUST be a non-empty string.
-
-18. Example output MUST always be present.
-
-An output value can be:
-
-- string
-- number
-- boolean
-- array
-- object
-
-An empty array [] is VALID.
-
-Do NOT omit the output field.
-
-Do NOT use null for output.
-
-19. Every explanation MUST be a non-empty string.
-
-20. Examples must correctly represent the problem and must follow the given constraints.
-
-==================================================
-QUESTION QUALITY
-==================================================
-
-21. Do NOT include solutions.
-
-22. Do NOT include solution code.
-
-23. Do NOT create duplicate questions.
-
-24. Questions must be logically correct and solvable.
-
-25. The description must clearly explain the problem.
-
-26. Constraints must be relevant to the problem.
-
-27. inputFormat must clearly describe the input.
-
-28. outputFormat must clearly describe the expected output.
-
-29. Examples must match the problem description.
-
-30. timeLimit MUST be a positive number representing seconds.
-
-31. memoryLimit MUST be a positive number representing MB.
-
-32. Do NOT fabricate platform information.
-
-33. Do NOT fabricate URLs.
-
-34. redirectUrl and platformImage may be null.
-
-35. If the question is original/custom, always use:
-
-"redirectUrl": null,
-"platformImage": null
-
-==================================================
-STARTER CODE
-==================================================
-
-36. For every question, generate starterCode for:
-
-cpp
-python
-javascript
-
-37. The starter code MUST be a complete, executable program.
-
-It MUST include the entry point and standard input/output boilerplate.
-
-DO NOT use LeetCode-style class wrappers.
-
-DO NOT use:
-
-class Solution
-
-The program MUST read input from stdin and print output to stdout.
-
-The candidate should only need to add the solution logic.
-
-For C++:
-
-- Include required standard headers.
-- Include using namespace std where required.
-- Include int main().
-- Read input from stdin.
-- Print output to stdout.
-
-Example:
-
-#include <iostream>
-#include <vector>
-#include <string>
-
-using namespace std;
-
-int main() {
-    // Read input from stdin
-
-    // Candidate solution logic
-
-    // Print output
-
-    return 0;
-}
-
-For Python:
-
-- Import sys.
-- Read input using sys.stdin.read().
-- Include main().
-- Include if __name__ == "__main__".
-
-Example:
-
-import sys
-
-def main():
-    input_data = sys.stdin.read().split()
-
-    if not input_data:
-        return
-
-    # Candidate solution logic
-
+Python MUST contain main() and:
 if __name__ == "__main__":
-    main()
 
-For JavaScript:
-
-- Use Node.js.
-- Read stdin using fs.readFileSync(0, "utf-8").
-- Include main().
-- Call main().
-
-Example:
-
-const fs = require("fs");
-
-function main() {
-    const input = fs.readFileSync(0, "utf-8").trim().split(/\\s+/);
-
-    if (input.length === 0 || input[0] === "") {
-        return;
-    }
-
-    // Candidate solution logic
-}
-
-main();
-
-Do not include solution logic.
-
-Only provide the executable I/O template and entry point structure.
+JavaScript MUST use:
+fs.readFileSync(0, "utf-8")
 
 ==================================================
-JSON OUTPUT REQUIREMENTS
+12. TIME AND MEMORY
 ==================================================
 
-38. Return ONLY valid JSON.
+timeLimit MUST be a positive number representing seconds.
 
-39. Do NOT return Markdown.
+memoryLimit MUST be a positive number representing MB.
 
-40. Do NOT use a Markdown code block.
+==================================================
+13. JSON RULES
+==================================================
 
-41. Do NOT wrap the complete JSON inside a string.
+Return ONLY valid JSON.
 
-42. Do NOT add explanations outside the JSON.
+Do NOT return:
+- Markdown
+- code fences
+- explanations outside JSON
+- comments
+- extra fields
 
-43. Do NOT add comments inside the JSON.
+==================================================
+14. FINAL VALIDATION
+==================================================
 
-44. Do NOT include any fields that are not part of the required structure.
+Before returning, verify:
 
-45. Before returning the JSON, internally verify:
-
-- Exactly ${quesNo} questions exist.
-- Every question contains all required fields.
-- constraints is a non-empty array.
-- Every constraint is a non-empty string.
-- Every question has at least 2 examples.
-- Every example contains input, output, and explanation.
-- Every example input is a non-empty string.
-- Every example output is present and is not null.
-- Every question contains cpp, python, and javascript starterCode.
-- Starter code is executable.
-- Starter code contains stdin/stdout handling.
-- Starter code does not contain solution logic.
-- Every question has a valid difficulty.
-- Overall difficulty is valid.
-- allowedLanguages contains cpp, python, javascript.
-- timeLimit is a positive number.
-- memoryLimit is a positive number.
-- No duplicate questions exist.
+- Exactly ${quesNo} questions.
+- No duplicate questions.
+- All required fields exist.
+- constraints are valid and non-empty.
+- At least 2 valid examples per question.
+- Every example input is valid.
+- Every example output is correct.
+- testCases is an array.
+- Every test case input is valid raw stdin.
+- Every test case satisfies constraints.
+- Every test case expectedOutput is correct for its exact input.
+- expectedOutput is always a string.
+- n/counts/dimensions match actual input.
+- inputFormat matches actual input.
+- outputFormat matches actual output.
+- Starter code exists for all 3 languages.
+- Starter code is executable and contains no solution.
+- difficulty values are valid.
+- allowedLanguages are correct.
+- timeLimit and memoryLimit are positive.
 - Platform URLs are not fabricated.
-- Original/custom questions have redirectUrl and platformImage set to null.
-- Every question contains a testCases array.
-- Every test case contains testCaseNumber.
-- Every test case contains input.
-- Every test case contains expectedOutput.
-- Every test case contains isHidden.
-- testCaseNumber is a number.
-- input is a string.
-- Empty string input is allowed.
-- expectedOutput is present and is not null.
-- Empty string expectedOutput is allowed.
-- isHidden is a boolean.
-- The number of test cases may vary.
-- Do NOT enforce a fixed test case count.
-- Test cases follow the problem constraints.
-- expectedOutput is correct for the corresponding input.
+- Original/custom questions use null platform fields.
 
-If any requirement is violated, FIX IT BEFORE RETURNING THE JSON.
+If ANY requirement fails, FIX it before returning.
 
 ==================================================
 JSON STRUCTURE
 ==================================================
 
-Return exactly this structure:
+Return exactly:
 
 {
   "questions": [
@@ -545,27 +404,27 @@ Return exactly this structure:
       "outputFormat": "Description of output",
       "examples": [
         {
-          "input": "5",
-          "output": "120",
-          "explanation": "Explanation of the example"
+          "input": "valid raw input",
+          "output": "correct output",
+          "explanation": "Explanation"
         },
         {
-          "input": "3",
-          "output": "6",
-          "explanation": "Explanation of the example"
+          "input": "valid raw input",
+          "output": "correct output",
+          "explanation": "Explanation"
         }
       ],
       "testCases": [
         {
           "testCaseNumber": 1,
-          "input": "",
-          "expectedOutput": "true",
+          "input": "valid raw stdin",
+          "expectedOutput": "exact correct stdout",
           "isHidden": false
         },
         {
           "testCaseNumber": 2,
-          "input": "racecar",
-          "expectedOutput": "true",
+          "input": "valid raw stdin",
+          "expectedOutput": "exact correct stdout",
           "isHidden": true
         }
       ],
@@ -575,9 +434,9 @@ Return exactly this structure:
         "javascript"
       ],
       "starterCode": {
-        "cpp": "#include <iostream>\\n#include <string>\\nusing namespace std;\\n\\nint main() {\\n    // Read input\\n    // Write solution logic\\n    // Print output\\n    return 0;\\n}",
-        "python": "import sys\\n\\ndef main():\\n    input_data = sys.stdin.read().split()\\n    if not input_data:\\n        return\\n    # Write solution logic here\\n\\nif __name__ == \\"__main__\\":\\n    main()",
-        "javascript": "const fs = require(\\"fs\\");\\n\\nfunction main() {\\n    const input = fs.readFileSync(0, \\"utf-8\\").trim().split(/\\\\s+/);\\n    if (input.length === 0 || input[0] === \\"\\") return;\\n    // Write solution logic here\\n}\\n\\nmain();"
+        "cpp": "executable C++ stdin/stdout template",
+        "python": "executable Python stdin/stdout template",
+        "javascript": "executable JavaScript stdin/stdout template"
       },
       "timeLimit": 2,
       "memoryLimit": 256
@@ -590,7 +449,7 @@ FINAL REQUIREMENT:
 
 Return ONLY the JSON object.
 
-There MUST NOT be any fields outside the structure defined above.`;
+Most importantly, NEVER return an input/output pair without independently verifying that the expectedOutput is the correct result for that exact input.`;
 
     const generateOneQuestion = async (
       questionNumber,
