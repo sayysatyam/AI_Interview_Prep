@@ -109,6 +109,7 @@ const normalizeTestInput = (value) => {
     return "";
   }
 
+  // Handle escaped newlines
   input = input.replace(/\\r\\n/g, "\n");
   input = input.replace(/\\n/g, "\n");
 
@@ -116,11 +117,12 @@ const normalizeTestInput = (value) => {
   // Example: 1,2,3 -> 1 2 3
   input = input.replace(/,/g, " ");
 
-  input = input.replace(/^\s*\[\s*/, "");
-  input = input.replace(/\s*\]\s*$/, "");
+  // REMOVED the regexes that were stripping '[' and ']'
 
+  // Normalize multiple spaces/tabs into a single space
   input = input.replace(/[ \t]+/g, " ");
 
+  // Trim every individual line
   input = input
     .split("\n")
     .map((line) => line.trim())

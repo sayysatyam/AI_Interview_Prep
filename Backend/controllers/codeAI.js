@@ -2,6 +2,12 @@ const axios = require("axios");
 const CodingDetails = require("../models/codeAI");
 const userDetails = require("../models/auth");
 const { redisClient } = require("../config/redis");
+const { generateExpectedOutput } = require("./generateExpectedOutput");
+
+// ======================================================
+// OPENROUTER CONFIG
+// ======================================================
+
 const OPENROUTER_HEADERS = {
   Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
   "Content-Type": "application/json",
@@ -9,6 +15,10 @@ const OPENROUTER_HEADERS = {
 
 const OPENROUTER_URL =
   "https://openrouter.ai/api/v1/chat/completions";
+
+// ======================================================
+// CODE QUESTION GENERATOR
+// ======================================================
 
 const codeQuesGenerator = async (req, res) => {
   const totalStart = Date.now();
@@ -38,7 +48,9 @@ const codeQuesGenerator = async (req, res) => {
 
     const user = await userDetails.findById(userId);
 
-    console.log(`User DB Time: ${Date.now() - userDbStart} ms`);
+    console.log(
+      `User DB Time: ${Date.now() - userDbStart} ms`,
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -70,7 +82,7 @@ const codeQuesGenerator = async (req, res) => {
     }
 
     // ==================================================
-    // ORIGINAL PROMPT
+    // AI PROMPT
     // ==================================================
 
     const message = `You are an AI Coding Interview Question Generator.
@@ -78,315 +90,200 @@ const codeQuesGenerator = async (req, res) => {
 USER REQUEST:
 ${prompt}
 
-Generate exactly ${quesNo} coding questions.
+Generate exactly ${quesNo} unique coding questions.
 
 ==================================================
-1. GENERAL REQUIREMENTS
+REQUIREMENTS
 ==================================================
 
-Generate exactly ${quesNo} unique, logically correct, solvable coding questions.
+1. Generate exactly ${quesNo} questions.
 
-Questions may be:
-- Original/custom
-- Platform-inspired
-- Platform-associated
+2. Questions may be original/custom or based on known coding problem patterns.
 
-When ${quesNo} > 1, include a reasonable mixture of original/custom and platform-associated questions whenever possible.
+3. Do not fabricate platform URLs or platform information.
 
-NEVER fabricate platform information.
-
-For verified platform questions:
-"redirectUrl": "verified URL",
-"platformImage": "verified logo URL"
-
-For original/custom or unverified platform questions:
-"redirectUrl": null,
-"platformImage": null
-
-==================================================
-2. REQUIRED FIELDS
-==================================================
-
-Every question MUST contain:
+4. Every question must contain:
 
 - title
 - difficulty
 - topic
+- redirectUrl
+- platformImage
 - description
 - constraints
 - inputFormat
 - outputFormat
 - examples
 - testCases
+- referenceSolution
 - allowedLanguages
 - starterCode
 - timeLimit
 - memoryLimit
-- redirectUrl
-- platformImage
 
-==================================================
-3. CONSTRAINTS
-==================================================
+5. difficulty must be one of:
 
-constraints MUST be a non-empty array of relevant, accurate strings.
+- easy
+- medium
+- hard
 
-Constraints MUST correctly describe the valid input space.
-
-They MUST be consistent with:
-- description
-- inputFormat
-- examples
-- testCases
-
-If n represents the number of elements, every generated input MUST contain exactly n elements.
-
-If dimensions/counts are specified, the actual input MUST match them exactly.
-
-Every example and test case MUST satisfy ALL constraints.
-
-==================================================
-4. EXAMPLES
-==================================================
-
-Every question MUST contain at least 2 examples.
-
-Every example MUST contain:
-
-- input
-- output
-- explanation
-
-Example input MUST:
-- be a non-empty string
-- follow inputFormat exactly
-- satisfy all constraints
-
-Example output MUST:
-- always be a string
-- be the correct output for that exact input
-- follow outputFormat exactly
-- never be null
-
-NEVER guess or copy example output.
-
-==================================================
-5. TEST CASES
-==================================================
-
-testCases MUST be an array.
-
-The number of test cases is flexible. Do NOT enforce a fixed count.
-
-Generate more than 5 when reasonable.
-
-Every test case MUST contain:
-
-- testCaseNumber
-- input
-- expectedOutput
-- isHidden
-
-Rules:
-
-- testCaseNumber → number
-- input → string
-- expectedOutput → string
-- isHidden → boolean
-
-input MUST be valid raw stdin that can be directly passed to Judge0.
-
-Do NOT use JSON, programming-language syntax, labels, comments, or explanations unless explicitly required by inputFormat.
-
-==================================================
-6. CRITICAL INPUT/OUTPUT VALIDATION
-==================================================
-
-This is mandatory.
-
-For EVERY example and EVERY test case, independently verify:
-
-constraints
-    ↓
-inputFormat
-    ↓
-exact input
-    ↓
-problem rules
-    ↓
-correct result
-    ↓
-outputFormat
-    ↓
-output / expectedOutput
-
-The input and expectedOutput MUST be verified as a pair.
-
-For every input:
-
-- Verify all required values exist.
-- Verify no values are missing or extra.
-- Verify n/counts/dimensions match the actual input.
-- Verify every value satisfies its constraints.
-- Verify the input follows inputFormat exactly.
-
-For every output:
-
-- Independently solve/derive the result for that exact input.
-- Do NOT guess the result.
-- Do NOT copy the result from another case.
-- Do NOT assume a generated result is correct.
-- Convert the result to the exact stdout format.
-- expectedOutput MUST be the exact correct stdout string.
-
-A valid input does NOT mean its expectedOutput is correct.
-
-==================================================
-7. MANDATORY RE-VERIFICATION
-==================================================
-
-Before returning the JSON, perform a final independent verification of EVERY example and EVERY test case.
-
-For each one, verify:
-
-1. Input is valid.
-2. Input satisfies constraints.
-3. Input follows inputFormat.
-4. The problem is solved using that exact input.
-5. Output is correctly calculated.
-6. Output follows outputFormat.
-7. Input and output are consistent.
-
-If ANY error is found, FIX it and verify again.
-
-Do NOT return the JSON until all input/output pairs are verified.
-
-==================================================
-8. TEST CASE COVERAGE
-==================================================
-
-When reasonable, include:
-
-- minimum valid case
-- normal case
-- boundary case
-- edge case
-- duplicate/special cases when relevant
-- large or near-maximum valid case when reasonable
-
-NEVER violate constraints to create an edge case.
-
-==================================================
-9. DIFFICULTY
-==================================================
-
-Question difficulty MUST be one of:
-
-"easy"
-"medium"
-"hard"
-
-Overall difficulty MUST be one of:
-
-"easy"
-"medium"
-"hard"
-"mixed"
-
-==================================================
-10. LANGUAGES
-==================================================
-
-Every question MUST support exactly:
-
-"cpp"
-"python"
-"javascript"
-
-==================================================
-11. STARTER CODE
-==================================================
-
-Generate executable starterCode for:
+6. allowedLanguages must contain exactly:
 
 - cpp
 - python
 - javascript
 
-Starter code MUST:
+==================================================
+CONSTRAINTS
+==================================================
+
+- constraints must be a non-empty array of strings.
+- Constraints must match the problem, input format and generated inputs.
+- Every generated input must satisfy all constraints.
+- If n/counts/dimensions are given, the actual input must match them exactly.
+
+==================================================
+EXAMPLES
+==================================================
+
+Generate at least 2 examples.
+
+Each example must contain:
+
+- input
+- output
+- explanation
+
+Example inputs must:
+
+- use raw stdin format
+- follow inputFormat
+- satisfy all constraints
+
+Example outputs must represent the correct output for the example input.
+
+==================================================
+TEST CASES
+==================================================
+
+Generate multiple test cases covering different valid scenarios when reasonable.
+
+Each test case MUST contain ONLY:
+
+- testCaseNumber
+- input
+- isHidden
+
+Do NOT generate expectedOutput.
+
+Inputs MUST be valid raw Judge0 stdin.
+
+Use spaces/newlines for values.
+
+Do NOT use:
+
+- JSON arrays
+- JSON objects
+- variable assignments
+- labels such as "n = 5"
+- descriptive text inside input
+
+Example:
+
+"5
+1 2 3 4 5"
+
+- Every test case must contain all required input values.
+- Never generate empty or incomplete input unless the problem explicitly requires no input.
+- Test-case input must exactly follow the inputFormat.
+- For problems requiring n/counts/dimensions, provide the required values and exactly the required number of elements.
+==================================================
+REFERENCE SOLUTION
+==================================================
+
+For every question, generate one correct executable reference solution in Python.
+
+The reference solution MUST:
+
+- read input from stdin
+- solve the problem correctly
+- print the answer to stdout
+- follow the specified outputFormat
+- handle all valid inputs
+- contain complete solution logic
+- not use external libraries or files
+
+This reference solution will later be executed using Judge0 against every generated test-case input.
+
+The output produced by Judge0 will be used as the trusted expected output.
+
+NEVER generate an expectedOutput field for test cases.
+
+==================================================
+STARTER CODE
+==================================================
+
+Generate executable starter code for:
+
+- cpp
+- python
+- javascript
+
+Starter code must:
 
 - read from stdin
 - write to stdout
 - contain the required entry point
-- contain NO solution logic
-- NOT use class Solution
-- NOT use LeetCode-style wrappers
+- contain no solution logic
+- not use class Solution
+- not use LeetCode-style wrappers
 
-C++ MUST contain main().
+C++ must contain main().
 
-Python MUST contain main() and:
+Python must contain main() and:
+
 if __name__ == "__main__":
 
-JavaScript MUST use:
+JavaScript must use:
+
 fs.readFileSync(0, "utf-8")
 
 ==================================================
-12. TIME AND MEMORY
+TIME AND MEMORY
 ==================================================
 
-timeLimit MUST be a positive number representing seconds.
+timeLimit must be a positive number representing seconds.
 
-memoryLimit MUST be a positive number representing MB.
+memoryLimit must be a positive number representing MB.
 
 ==================================================
-13. JSON RULES
+PLATFORM FIELDS
+==================================================
+
+For original/custom or unverified platform questions:
+
+"redirectUrl": null
+"platformImage": null
+
+Never fabricate platform information.
+
+==================================================
+JSON RULES
 ==================================================
 
 Return ONLY valid JSON.
 
 Do NOT return:
+
 - Markdown
 - code fences
-- explanations outside JSON
 - comments
+- explanations outside JSON
 - extra fields
-
-==================================================
-14. FINAL VALIDATION
-==================================================
-
-Before returning, verify:
-
-- Exactly ${quesNo} questions.
-- No duplicate questions.
-- All required fields exist.
-- constraints are valid and non-empty.
-- At least 2 valid examples per question.
-- Every example input is valid.
-- Every example output is correct.
-- testCases is an array.
-- Every test case input is valid raw stdin.
-- Every test case satisfies constraints.
-- Every test case expectedOutput is correct for its exact input.
-- expectedOutput is always a string.
-- n/counts/dimensions match actual input.
-- inputFormat matches actual input.
-- outputFormat matches actual output.
-- Starter code exists for all 3 languages.
-- Starter code is executable and contains no solution.
-- difficulty values are valid.
-- allowedLanguages are correct.
-- timeLimit and memoryLimit are positive.
-- Platform URLs are not fabricated.
-- Original/custom questions use null platform fields.
-
-If ANY requirement fails, FIX it before returning.
 
 ==================================================
 JSON STRUCTURE
 ==================================================
-
-Return exactly:
 
 {
   "questions": [
@@ -404,39 +301,40 @@ Return exactly:
       "outputFormat": "Description of output",
       "examples": [
         {
-          "input": "valid raw input",
-          "output": "correct output",
+          "input": "5\\n1 2 3 4 5",
+          "output": "15",
           "explanation": "Explanation"
         },
         {
-          "input": "valid raw input",
-          "output": "correct output",
+          "input": "3\\n10 20 30",
+          "output": "60",
           "explanation": "Explanation"
         }
       ],
       "testCases": [
         {
           "testCaseNumber": 1,
-          "input": "valid raw stdin",
-          "expectedOutput": "exact correct stdout",
+          "input": "5\\n1 2 3 4 5",
           "isHidden": false
         },
         {
           "testCaseNumber": 2,
-          "input": "valid raw stdin",
-          "expectedOutput": "exact correct stdout",
+          "input": "3\\n10 20 30",
           "isHidden": true
         }
       ],
+      "referenceSolution": {
+        "python": "Complete executable Python solution"
+      },
       "allowedLanguages": [
         "cpp",
         "python",
         "javascript"
       ],
       "starterCode": {
-        "cpp": "executable C++ stdin/stdout template",
-        "python": "executable Python stdin/stdout template",
-        "javascript": "executable JavaScript stdin/stdout template"
+        "cpp": "Executable C++ stdin/stdout template",
+        "python": "Executable Python stdin/stdout template",
+        "javascript": "Executable JavaScript stdin/stdout template"
       },
       "timeLimit": 2,
       "memoryLimit": 256
@@ -445,11 +343,32 @@ Return exactly:
   "difficulty": "medium"
 }
 
-FINAL REQUIREMENT:
+==================================================
+FINAL CHECK
+==================================================
 
-Return ONLY the JSON object.
+Before returning the JSON, verify:
 
-Most importantly, NEVER return an input/output pair without independently verifying that the expectedOutput is the correct result for that exact input.`;
+- Exactly ${quesNo} questions.
+- No duplicate questions.
+- All required fields exist.
+- constraints is a non-empty array.
+- At least 2 examples exist.
+- Example inputs follow the input format.
+- Test cases contain valid raw stdin.
+- Test cases contain NO expectedOutput.
+- Every test-case input satisfies the constraints.
+- referenceSolution exists and is executable.
+- referenceSolution correctly solves the problem.
+- Starter code exists for all 3 languages.
+- timeLimit and memoryLimit are positive.
+- No extra fields are present.
+
+Return ONLY the JSON object.`;
+
+    // ==================================================
+    // GENERATE ONE QUESTION
+    // ==================================================
 
     const generateOneQuestion = async (
       questionNumber,
@@ -543,17 +462,18 @@ REQUIRED ONE-QUESTION STRUCTURE
       "testCases": [
         {
           "testCaseNumber": 1,
-          "input": "",
-          "expectedOutput": "...",
+          "input": "...",
           "isHidden": false
         },
         {
           "testCaseNumber": 2,
           "input": "...",
-          "expectedOutput": "...",
           "isHidden": true
         }
       ],
+      "referenceSolution": {
+        "python": "Complete executable Python solution"
+      },
       "allowedLanguages": [
         "cpp",
         "python",
@@ -577,14 +497,17 @@ IMPORTANT:
 - constraints MUST contain at least one string.
 - At least TWO examples.
 - All three languages are required.
-- No solution code.
+- referenceSolution.python is required.
+- No solution code outside referenceSolution.
 - No extra fields.
 - testCases MUST be present.
 - The number of test cases is flexible.
 - Try to generate more than 5 test cases when reasonable.
-- Empty input is allowed when valid.
-- Empty expectedOutput is allowed when valid.
-- Every test case must contain testCaseNumber, input, expectedOutput and isHidden.
+- Every test case must contain all required input values.
+- Never generate empty or incomplete input unless the problem explicitly requires no input.
+- Test-case input must exactly follow the inputFormat.
+- For problems requiring n/counts/dimensions, provide the required values and exactly the required number of elements.
+- Every test case must contain testCaseNumber, input and isHidden.
 - isHidden MUST be boolean.
 
 ${extraInstruction}
@@ -610,7 +533,8 @@ ${extraInstruction}
         },
       );
 
-      const text = response?.data?.choices?.[0]?.message?.content;
+      const text =
+        response?.data?.choices?.[0]?.message?.content;
 
       if (!text) {
         throw new Error(
@@ -660,7 +584,8 @@ ${extraInstruction}
         question.constraints.length === 0 ||
         question.constraints.some(
           (constraint) =>
-            typeof constraint !== "string" || !constraint.trim(),
+            typeof constraint !== "string" ||
+            !constraint.trim(),
         )
       ) {
         throw new Error(
@@ -687,7 +612,10 @@ ${extraInstruction}
         );
       }
 
-      for (const [testCaseIndex, testCase] of question.testCases.entries()) {
+      for (const [
+        testCaseIndex,
+        testCase,
+      ] of question.testCases.entries()) {
         const testCaseNumber = testCaseIndex + 1;
 
         if (
@@ -705,21 +633,41 @@ ${extraInstruction}
           );
         }
 
-        if (
-          testCase.expectedOutput === undefined ||
-          testCase.expectedOutput === null
-        ) {
-          throw new Error(
-            `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput missing`,
-          );
-        }
-
         if (typeof testCase.isHidden !== "boolean") {
           throw new Error(
             `Question ${questionNumber}, Test Case ${testCaseNumber}: isHidden must be boolean`,
           );
         }
+
+        // AI must NOT generate expectedOutput
+        if (Object.prototype.hasOwnProperty.call(
+          testCase,
+          "expectedOutput",
+        )) {
+          throw new Error(
+            `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput must not be generated by AI`,
+          );
+        }
       }
+
+      // ==================================================
+      // REFERENCE SOLUTION VALIDATION
+      // ==================================================
+
+      if (
+        !question.referenceSolution ||
+        typeof question.referenceSolution !== "object" ||
+        typeof question.referenceSolution.python !== "string" ||
+        question.referenceSolution.python.trim() === ""
+      ) {
+        throw new Error(
+          `Question ${questionNumber}: referenceSolution.python is missing`,
+        );
+      }
+
+      // ==================================================
+      // LANGUAGES
+      // ==================================================
 
       if (
         !Array.isArray(question.allowedLanguages) ||
@@ -730,6 +678,10 @@ ${extraInstruction}
         );
       }
 
+      // ==================================================
+      // STARTER CODE
+      // ==================================================
+
       if (
         !question.starterCode ||
         typeof question.starterCode !== "object"
@@ -738,6 +690,37 @@ ${extraInstruction}
           `Question ${questionNumber}: starterCode missing`,
         );
       }
+
+      if (
+        typeof question.starterCode.cpp !== "string" ||
+        question.starterCode.cpp.trim() === ""
+      ) {
+        throw new Error(
+          `Question ${questionNumber}: C++ starterCode is missing`,
+        );
+      }
+
+      if (
+        typeof question.starterCode.python !== "string" ||
+        question.starterCode.python.trim() === ""
+      ) {
+        throw new Error(
+          `Question ${questionNumber}: Python starterCode is missing`,
+        );
+      }
+
+      if (
+        typeof question.starterCode.javascript !== "string" ||
+        question.starterCode.javascript.trim() === ""
+      ) {
+        throw new Error(
+          `Question ${questionNumber}: JavaScript starterCode is missing`,
+        );
+      }
+
+      // ==================================================
+      // PLATFORM FIELDS
+      // ==================================================
 
       if (
         question.redirectUrl !== null &&
@@ -774,7 +757,11 @@ ${extraInstruction}
     ) => {
       let lastError;
 
-      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      for (
+        let attempt = 1;
+        attempt <= maxRetries + 1;
+        attempt++
+      ) {
         try {
           const result = await generateOneQuestion(
             questionNumber,
@@ -802,8 +789,11 @@ Every test case MUST contain:
 
 - testCaseNumber
 - input
-- expectedOutput
 - isHidden
+
+expectedOutput MUST NOT be generated.
+
+referenceSolution.python MUST be present and executable.
 
 Empty input is allowed when valid for the problem.`,
           );
@@ -835,7 +825,9 @@ Empty input is allowed when valid for the problem.`,
 
     const aiStart = Date.now();
 
-    console.log("Starting 5 parallel AI question generations...");
+    console.log(
+      "Starting 5 parallel AI question generations...",
+    );
 
     const results = await Promise.all(
       [
@@ -844,25 +836,21 @@ Empty input is allowed when valid for the problem.`,
           instruction:
             "Prefer an original/custom coding problem for this question.",
         },
-
         {
           number: 2,
           instruction:
             "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
         },
-
         {
           number: 3,
           instruction:
             "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
         },
-
         {
           number: 4,
           instruction:
             "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
         },
-
         {
           number: 5,
           instruction:
@@ -885,7 +873,9 @@ Empty input is allowed when valid for the problem.`,
       (result) => result.question.difficulty,
     );
 
-    const uniqueDifficulties = [...new Set(difficulties)];
+    const uniqueDifficulties = [
+      ...new Set(difficulties),
+    ];
 
     const overallDifficulty =
       uniqueDifficulties.length === 1
@@ -960,11 +950,17 @@ Empty input is allowed when valid for the problem.`,
 
     const questionTitles = new Set();
 
-    for (const [
-      questionIndex,
-      question,
-    ] of parsed.questions.entries()) {
+    for (
+      const [
+        questionIndex,
+        question,
+      ] of parsed.questions.entries()
+    ) {
       const questionNumber = questionIndex + 1;
+
+      // ----------------------------------------------
+      // TITLE
+      // ----------------------------------------------
 
       if (
         typeof question.title !== "string" ||
@@ -1089,10 +1085,12 @@ Empty input is allowed when valid for the problem.`,
         });
       }
 
-      for (const [
-        testCaseIndex,
-        testCase,
-      ] of question.testCases.entries()) {
+      for (
+        const [
+          testCaseIndex,
+          testCase,
+        ] of question.testCases.entries()
+      ) {
         const testCaseNumber =
           testCaseIndex + 1;
 
@@ -1108,7 +1106,6 @@ Empty input is allowed when valid for the problem.`,
           });
         }
 
-        // Empty string is VALID
         if (typeof testCase.input !== "string") {
           return res.status(500).json({
             success: false,
@@ -1117,23 +1114,24 @@ Empty input is allowed when valid for the problem.`,
         }
 
         if (
-          testCase.expectedOutput === undefined ||
-          testCase.expectedOutput === null
-        ) {
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput missing.`,
-          });
-        }
-
-        // Empty string expectedOutput is VALID
-
-        if (
           typeof testCase.isHidden !== "boolean"
         ) {
           return res.status(500).json({
             success: false,
             msg: `Question ${questionNumber}, Test Case ${testCaseNumber}: isHidden must be boolean.`,
+          });
+        }
+
+        // AI must never generate expectedOutput
+        if (
+          Object.prototype.hasOwnProperty.call(
+            testCase,
+            "expectedOutput",
+          )
+        ) {
+          return res.status(500).json({
+            success: false,
+            msg: `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput must not be generated by AI.`,
           });
         }
       }
@@ -1152,14 +1150,15 @@ Empty input is allowed when valid for the problem.`,
         });
       }
 
-      for (const [
-        exampleIndex,
-        example,
-      ] of question.examples.entries()) {
+      for (
+        const [
+          exampleIndex,
+          example,
+        ] of question.examples.entries()
+      ) {
         const exampleNumber =
           exampleIndex + 1;
 
-        // Input
         if (
           typeof example.input !== "string" ||
           example.input.trim() === ""
@@ -1170,7 +1169,6 @@ Empty input is allowed when valid for the problem.`,
           });
         }
 
-        // Output
         if (
           example.output === undefined ||
           example.output === null
@@ -1181,7 +1179,6 @@ Empty input is allowed when valid for the problem.`,
           });
         }
 
-        // Empty string output is invalid for examples
         if (
           typeof example.output === "string" &&
           example.output.trim() === ""
@@ -1192,7 +1189,6 @@ Empty input is allowed when valid for the problem.`,
           });
         }
 
-        // Explanation
         if (
           typeof example.explanation !== "string" ||
           example.explanation.trim() === ""
@@ -1239,8 +1235,7 @@ Empty input is allowed when valid for the problem.`,
       }
 
       if (
-        typeof question.starterCode.cpp !==
-          "string" ||
+        typeof question.starterCode.cpp !== "string" ||
         question.starterCode.cpp.trim() === ""
       ) {
         return res.status(500).json({
@@ -1250,8 +1245,7 @@ Empty input is allowed when valid for the problem.`,
       }
 
       if (
-        typeof question.starterCode.python !==
-          "string" ||
+        typeof question.starterCode.python !== "string" ||
         question.starterCode.python.trim() === ""
       ) {
         return res.status(500).json({
@@ -1261,13 +1255,28 @@ Empty input is allowed when valid for the problem.`,
       }
 
       if (
-        typeof question.starterCode.javascript !==
-          "string" ||
+        typeof question.starterCode.javascript !== "string" ||
         question.starterCode.javascript.trim() === ""
       ) {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: JavaScript starterCode is missing.`,
+        });
+      }
+
+      // ----------------------------------------------
+      // REFERENCE SOLUTION
+      // ----------------------------------------------
+
+      if (
+        !question.referenceSolution ||
+        typeof question.referenceSolution !== "object" ||
+        typeof question.referenceSolution.python !== "string" ||
+        question.referenceSolution.python.trim() === ""
+      ) {
+        return res.status(500).json({
+          success: false,
+          msg: `Question ${questionNumber}: referenceSolution.python is missing.`,
         });
       }
 
@@ -1290,8 +1299,7 @@ Empty input is allowed when valid for the problem.`,
       // ----------------------------------------------
 
       if (
-        typeof question.memoryLimit !==
-          "number" ||
+        typeof question.memoryLimit !== "number" ||
         question.memoryLimit <= 0
       ) {
         return res.status(500).json({
@@ -1330,6 +1338,20 @@ Empty input is allowed when valid for the problem.`,
     }
 
     // ==================================================
+    // GENERATE TRUSTED EXPECTED OUTPUT
+    // ==================================================
+
+    for (const question of parsed.questions) {
+  console.log(
+    "REFERENCE SOLUTION:",
+    question.referenceSolution.python
+  );
+
+  question.testCases =
+    await generateExpectedOutput(question);
+}
+
+    // ==================================================
     // PREPARE MONGODB DATA
     // ==================================================
 
@@ -1345,23 +1367,30 @@ Empty input is allowed when valid for the problem.`,
         platformImage:
           question.platformImage || "",
 
-        description: question.description,
+        description:
+          question.description,
 
-        constraints: question.constraints,
+        constraints:
+          question.constraints,
 
-        inputFormat: question.inputFormat,
+        inputFormat:
+          question.inputFormat,
 
-        outputFormat: question.outputFormat,
+        outputFormat:
+          question.outputFormat,
 
-        examples: question.examples,
+        examples:
+          question.examples,
 
-        testCases: question.testCases,
+        testCases:
+          question.testCases,
 
         allowedLanguages:
           question.allowedLanguages,
 
         starterCode: {
-          cpp: question.starterCode.cpp,
+          cpp:
+            question.starterCode.cpp,
 
           python:
             question.starterCode.python,
@@ -1370,7 +1399,8 @@ Empty input is allowed when valid for the problem.`,
             question.starterCode.javascript,
         },
 
-        timeLimit: question.timeLimit,
+        timeLimit:
+          question.timeLimit,
 
         memoryLimit:
           question.memoryLimit,
@@ -1381,14 +1411,16 @@ Empty input is allowed when valid for the problem.`,
     // CREATE CODING QUESTION DOCUMENT
     // ==================================================
 
-    const codeQuestion = new CodingDetails({
-      createdBy: userId,
-      prompt: prompt,
-      difficulty: parsed.difficulty,
-      numberOfQuestions: quesNo,
-      startedAt: new Date(),
-      codingDetails: quesDetails,
-    });
+    const codeQuestion =
+      new CodingDetails({
+        createdBy: userId,
+        prompt: prompt,
+        difficulty: parsed.difficulty,
+        numberOfQuestions: quesNo,
+        startedAt: new Date(),
+        codingDetails: quesDetails,
+      });
+
     // ==================================================
     // SAVE CODING ROUND
     // ==================================================
@@ -1404,44 +1436,44 @@ Empty input is allowed when valid for the problem.`,
       throw mongoError;
     }
 
-    //-----REDIS------
-      try {
+    // ==================================================
+    // REDIS CACHE
+    // ==================================================
 
-  console.log("⚡ Caching test cases in Redis...");
+    try {
+      console.log(
+        "⚡ Caching test cases in Redis...",
+      );
 
-  for (
-    let idx = 0;
-    idx < codeQuestion.codingDetails.length;
-    idx++
-  ) {
+      for (
+        let idx = 0;
+        idx < codeQuestion.codingDetails.length;
+        idx++
+      ) {
+        const question =
+          codeQuestion.codingDetails[idx];
 
-    const question =
-      codeQuestion.codingDetails[idx];
+        const cacheKey =
+          `coding:testCases:${codeQuestion._id}:${idx}`;
 
-    const cacheKey =
-      `coding:testCases:${codeQuestion._id}:${idx}`;
+        await redisClient.set(
+          cacheKey,
+          JSON.stringify(question.testCases),
+          {
+            EX: 60 * 60,
+          },
+        );
 
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(question.testCases),
-      {
-        EX: 60 * 60
+        console.log(
+          `⚡ Test cases cached: ${cacheKey}`,
+        );
       }
-    );
-
-    console.log(
-      `⚡ Test cases cached: ${cacheKey}`
-    );
-  }
-
-} catch (redisError) {
-
-  console.error(
-    "❌ REDIS CACHE ERROR:",
-    redisError.message
-  );
-
-}
+    } catch (redisError) {
+      console.error(
+        "❌ REDIS CACHE ERROR:",
+        redisError.message,
+      );
+    }
 
     // ==================================================
     // DEDUCT CREDITS
@@ -1468,11 +1500,13 @@ Empty input is allowed when valid for the problem.`,
     return res.status(200).json({
       success: true,
 
-      msg: "Coding round generated successfully.",
+      msg:
+        "Coding round generated successfully.",
 
       data: parsed,
 
-      codingID: codeQuestion._id.toString(),
+      codingID:
+        codeQuestion._id.toString(),
     });
   } catch (error) {
     console.error(
@@ -1493,7 +1527,8 @@ Empty input is allowed when valid for the problem.`,
       return res.status(400).json({
         success: false,
 
-        msg: "Generated coding question contains invalid data.",
+        msg:
+          "Generated coding question contains invalid data.",
 
         details: Object.keys(
           error.errors || {},
@@ -1562,7 +1597,8 @@ const codeQuesDetail = async (req, res) => {
       message:
         "Coding question fetched successfully",
 
-      details: codingQuestionDetails,
+      details:
+        codingQuestionDetails,
 
       codingId: id,
     });
@@ -1575,9 +1611,11 @@ const codeQuesDetail = async (req, res) => {
     return res.status(500).json({
       success: false,
 
-      message: "Failed to fetch coding question",
+      message:
+        "Failed to fetch coding question",
 
-      error: error.message,
+      error:
+        error.message,
     });
   }
 };
