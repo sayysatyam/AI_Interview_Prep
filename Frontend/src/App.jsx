@@ -82,7 +82,7 @@ const App = () => {
         }}
       />
       <div className="bg-[#F0EBE3]">
-        <div>
+        <div className="sticky top-0 z-50 shadow-xs ">
           <Navbar />
         </div>
         <Routes>

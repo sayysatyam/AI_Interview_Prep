@@ -68,7 +68,7 @@ export const codeAIStore = create((set) => ({
     return resultAfterSubmit;
   } catch (error) {
     set({
-      error: error.response?.data?.msg || "Something Went Wrong",
+      error: error.response?.data?.msg || error.response?.data?.message || "Something Went Wrong",
       isLoadingCodingQuestion: false,
       success: false,
     });

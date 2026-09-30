@@ -11,7 +11,7 @@ import { Clock, MessageCircleQuestionMark, Sparkle, SparkleIcon, Sparkles, Targe
   Users,
   Code,
   Brain} from "lucide-react";
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaRobot, FaSpinner } from "react-icons/fa6";
 import RoleBasedImage from "../../assets/AiCapabilites Images/ROle Based interview.jpeg"
@@ -32,6 +32,14 @@ import { AIuseStore } from "../../AuthStore/AIStore";
 const Hero = () => {
 
   const navigate = useNavigate();
+
+useEffect(() => {
+  if (window.location.hash === "#features") {
+    document.getElementById("features")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }
+}, []);
 
   const userManual = [
     {
@@ -318,9 +326,9 @@ const interviewModes = [
        <div className="flex items-center justify-center gap-10 flex-col px-4">
 
    <section
-   id="ai-capabilities"
+   id="features"
     className="px-4 py-16 max-w-6xl mx-auto">
-        <div className="text-center mb-12">
+        <div id="features"  className="text-center mb-12 scroll-mt-24">
           <p className="text-xs font-semibold text-green-600 tracking-widest uppercase mb-2">Features</p>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
             Interview.Prep <span className="text-green-600">AI capabilities</span>

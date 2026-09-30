@@ -95,6 +95,37 @@ const expectedOutputToString = (value) => {
 };
 
 // ============================================================
+// BUILD CONSISTENT RESPONSE
+// ============================================================
+
+const buildTestCaseResponse = ({
+  testCaseResults,
+  sortedTestCases,
+  success = false,
+  status,
+  message,
+  failedTestCase,
+  executionTime,
+}) => {
+  return {
+    success,
+    status,
+    message,
+    failedTestCase,
+
+    totalTestCases: sortedTestCases.length,
+
+    passedTestCases: testCaseResults.filter(
+      (testCase) => testCase.passed === true
+    ).length,
+
+    executionTime,
+
+    testCases: testCaseResults,
+  };
+};
+
+// ============================================================
 // NORMALIZE TEST INPUT
 // ============================================================
 
@@ -114,12 +145,11 @@ const normalizeTestInput = (value) => {
   input = input.replace(/\\n/g, "\n");
 
   // Convert comma-separated numeric input to whitespace.
-  // Example: 1,2,3 -> 1 2 3
+  // Example:
+  // 1,2,3 -> 1 2 3
   input = input.replace(/,/g, " ");
 
-  // REMOVED the regexes that were stripping '[' and ']'
-
-  // Normalize multiple spaces/tabs into a single space
+  // Normalize multiple spaces/tabs
   input = input.replace(/[ \t]+/g, " ");
 
   // Trim every individual line
@@ -201,8 +231,6 @@ const getJudge0Result = async (token) => {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      // IMPORTANT:
-      // Poll with base64_encoded=true
       const response = await axios.get(
         `${JUDGE0_URL}/submissions/${token}?base64_encoded=true`,
         {
@@ -305,7 +333,8 @@ const submitCode = async (req, res) => {
     // REDIS CACHE
     // ========================================================
 
-    const cacheKey = `coding:questionDetails:${codingId}:${index}`;
+    const cacheKey =
+      `coding:questionDetails:${codingId}:${index}`;
 
     let testCases = null;
     let timeLimit = null;
@@ -397,6 +426,8 @@ const submitCode = async (req, res) => {
     // RUN EVERY TEST CASE
     // ========================================================
 
+    const testCaseResults = [];
+
     for (let i = 0; i < sortedTestCases.length; i++) {
       const testCase = sortedTestCases[i];
 
@@ -413,7 +444,7 @@ const submitCode = async (req, res) => {
       let token;
 
       // ======================================================
-      // CREATE SUBMISSION
+      // CREATE JUDGE0 SUBMISSION
       // ======================================================
 
       try {
@@ -425,15 +456,20 @@ const submitCode = async (req, res) => {
           memoryLimit,
         });
       } catch (judgeError) {
-        return res.status(502).json({
-          success: false,
-          status: "Judge0 Submission Error",
-          msg:
-            judgeError.response?.data?.error ||
-            judgeError.message ||
-            "Unable to submit code to Judge0.",
-          testCaseNumber,
-        });
+        return res.status(502).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Judge0 Submission Error",
+            message:
+              judgeError.response?.data?.error ||
+              judgeError.message ||
+              "Unable to submit code to Judge0.",
+            failedTestCase: testCaseNumber,
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       console.log(
@@ -449,37 +485,64 @@ const submitCode = async (req, res) => {
       try {
         result = await getJudge0Result(token);
       } catch (judgeError) {
-        return res.status(502).json({
-          success: false,
-          status: "Judge0 Result Error",
-          msg:
-            judgeError.response?.data?.error ||
-            judgeError.message ||
-            "Unable to get execution result from Judge0.",
-          testCaseNumber,
-        });
+        return res.status(502).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Judge0 Result Error",
+            message:
+              judgeError.response?.data?.error ||
+              judgeError.message ||
+              "Unable to get execution result from Judge0.",
+            failedTestCase: testCaseNumber,
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
-      // DECODE BASE64 OUTPUT
+      // DECODE OUTPUT
       // ======================================================
 
-      const actualOutput = decodeJudge0Output(
-        result.stdout
-      );
+      const actualOutput =
+        decodeJudge0Output(result.stdout);
 
-      const stderr = decodeJudge0Output(
-        result.stderr
-      );
+      const stderr =
+        decodeJudge0Output(result.stderr);
 
-      const compileOutput = decodeJudge0Output(
-        result.compile_output
-      );
+      const compileOutput =
+        decodeJudge0Output(result.compile_output);
+
+      // ======================================================
+      // ADD TESTCASE RESULT
+      // ======================================================
+
+      testCaseResults.push({
+        testCaseNumber,
+        input,
+        expectedOutput,
+        actualOutput,
+        isHidden: Boolean(testCase.isHidden),
+        passed: false,
+      });
 
       const statusId = result.status?.id;
 
       const statusDescription =
         result.status?.description || "Unknown";
+
+      // ======================================================
+      // NEVER EXPOSE HIDDEN OUTPUT
+      // ======================================================
+
+      if (testCase.isHidden) {
+        const currentResult =
+          testCaseResults[testCaseResults.length - 1];
+
+        delete currentResult.expectedOutput;
+        delete currentResult.actualOutput;
+      }
 
       // ======================================================
       // DEBUG
@@ -514,16 +577,19 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId === 13) {
-        return res.status(502).json({
-          success: false,
-          status: "Judge0 Internal Error",
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          message:
-            result.message ||
-            "Judge0 encountered an internal execution error.",
-          executionTime: Date.now() - startTime,
-        });
+        return res.status(502).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Judge0 Internal Error",
+            failedTestCase: testCaseNumber,
+            message:
+              result.message ||
+              "Judge0 encountered an internal execution error.",
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
@@ -531,15 +597,19 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId === 6) {
-        return res.status(200).json({
-          success: false,
-          status: "Compilation Error",
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          message:
-            compileOutput || "Compilation error.",
-          executionTime: Date.now() - startTime,
-        });
+        return res.status(200).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Compilation Error",
+            failedTestCase: testCaseNumber,
+            message:
+              compileOutput ||
+              "Compilation error.",
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
@@ -547,13 +617,17 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId === 5) {
-        return res.status(200).json({
-          success: false,
-          status: "Time Limit Exceeded",
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          executionTime: Date.now() - startTime,
-        });
+        return res.status(200).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Time Limit Exceeded",
+            failedTestCase: testCaseNumber,
+            message: "Time limit exceeded.",
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
@@ -567,15 +641,18 @@ const submitCode = async (req, res) => {
         statusId === 10 ||
         statusId === 11
       ) {
-        return res.status(200).json({
-          success: false,
-          status: "Runtime Error",
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          message:
-            stderr || statusDescription,
-          executionTime: Date.now() - startTime,
-        });
+        return res.status(200).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Runtime Error",
+            failedTestCase: testCaseNumber,
+            message:
+              stderr || statusDescription,
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
@@ -583,18 +660,21 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId !== 3) {
-        return res.status(200).json({
-          success: false,
-          status: statusDescription,
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          message:
-            result.message ||
-            stderr ||
-            compileOutput ||
-            statusDescription,
-          executionTime: Date.now() - startTime,
-        });
+        return res.status(200).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: statusDescription,
+            failedTestCase: testCaseNumber,
+            message:
+              result.message ||
+              stderr ||
+              compileOutput ||
+              statusDescription,
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
 
       // ======================================================
@@ -621,24 +701,28 @@ const submitCode = async (req, res) => {
       // WRONG ANSWER
       // ======================================================
 
-      if (
-        normalizedActual !== normalizedExpected
-      ) {
-        return res.status(200).json({
-          success: false,
-          status: "Wrong Answer",
-          failedTestCase: testCaseNumber,
-          isHidden: testCase.isHidden,
-          ...(testCase.isHidden
-            ? {}
-            : {
-                expectedOutput,
-                actualOutput,
-              }),
-          executionTime:
-            Date.now() - startTime,
-        });
+      if (normalizedActual !== normalizedExpected) {
+        return res.status(200).json(
+          buildTestCaseResponse({
+            testCaseResults,
+            sortedTestCases,
+            success: false,
+            status: "Wrong Answer",
+            failedTestCase: testCaseNumber,
+            message:
+              "Your output does not match the expected output.",
+            executionTime: Date.now() - startTime,
+          })
+        );
       }
+
+      // ======================================================
+      // CURRENT TESTCASE PASSED
+      // ======================================================
+
+      testCaseResults[
+        testCaseResults.length - 1
+      ].passed = true;
     }
 
     // ========================================================
@@ -649,10 +733,19 @@ const submitCode = async (req, res) => {
       success: true,
       status: "Accepted",
       message: "All test cases passed.",
-      totalTestCases: sortedTestCases.length,
-      passedTestCases: sortedTestCases.length,
-      executionTime: Date.now() - startTime,
+
+      totalTestCases:
+        sortedTestCases.length,
+
+      passedTestCases:
+        sortedTestCases.length,
+
+      executionTime:
+        Date.now() - startTime,
+
+      testCases: testCaseResults,
     });
+
   } catch (error) {
     console.error(
       "❌ SUBMIT CODE ERROR:",

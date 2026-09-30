@@ -1,7 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import Editor from "@monaco-editor/react";
+import Editor, { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+
+loader.config({ monaco });
 import {
   Play,
   Send,
@@ -16,12 +19,21 @@ import {
   Terminal,
   Loader2,
   XCircle,
+  LucideMaximize,
+  LucideMinimize,
+  Sun,
+  MoonIcon,
 } from "lucide-react";
 import { codeAIStore } from "../../../AuthStore/codeAI";
 
 const StartCodingInterview = () => {
-  const { codeQuesbyID, isLoadingCodingQuestion, codeQuestionData, error,codeSubmitAI,resultAfterSubmit } =
-    codeAIStore();
+  const {
+    codeQuesbyID,
+    codeQuestionData,
+    error,
+    codeSubmitAI,
+    resultAfterSubmit,
+  } = codeAIStore();
   const { id } = useParams();
   const editorRef = useRef(null);
 
@@ -31,9 +43,47 @@ const StartCodingInterview = () => {
   const [activeTab, setActiveTab] = useState("description");
   const [testResult, setTestResult] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [isSubmitting , setisSubmitting ] = useState(false);
+  const [testPanelHeight, setTestPanelHeight] = useState(280);
+const [isDragging, setIsDragging] = useState(false);
+const [isDark, setisDark] = useState(true);
+
+const startResize = (e) => {
+  e.preventDefault();
+  setIsDragging(true);
+
+  const startY = e.clientY;
+  const startHeight = testPanelHeight;
+
+  const handleMouseMove = (e) => {
+    const delta = startY - e.clientY;
+
+    const newHeight = Math.min(
+      Math.max(startHeight + delta, 100),
+      window.innerHeight * 0.65
+    );
+
+    setTestPanelHeight(newHeight);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  };
+
+  document.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mouseup", handleMouseUp);
+};
+
+const mode = ()=>{
+    setisDark(!isDark);
+
+};
+const themeMode = isDark ? "vs-dark" : "vs";
 
   // =========================================================
   // FETCH CODING ROUND
@@ -71,52 +121,8 @@ const StartCodingInterview = () => {
     }
   }, [availableLanguages, language]);
 
-  // =========================================================
-  // TIMER
-  // =========================================================
-  useEffect(() => {
-    if (!codeQuestionData?.startedAt || questions.length === 0) return;
 
-    const totalMinutes = questions.reduce((total, item) => {
-      const limit = Number(item?.timeLimit);
-      return !Number.isFinite(limit) ? total : total + limit;
-    }, 0);
-
-    if (totalMinutes <= 0) {
-      setTimeLeft(null);
-      return;
-    }
-
-    const startTime = new Date(codeQuestionData.startedAt).getTime();
-    if (Number.isNaN(startTime)) return;
-
-    const endTime = startTime + totalMinutes * 60 * 1000;
-
-    const updateTimer = () => {
-      const remaining = Math.max(0, endTime - Date.now());
-      setTimeLeft(remaining);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [codeQuestionData?.startedAt, questions]);
-
-  const formattedTime = useMemo(() => {
-    if (timeLeft === null) return "--:--";
-
-    const totalSeconds = Math.floor(timeLeft / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-      2,
-      "0"
-    )}`;
-  }, [timeLeft]);
-
-  const timerIsLow =
-    timeLeft !== null && timeLeft <= 5 * 60 * 1000;
+ 
 
   // =========================================================
   // LOAD QUESTION CODE
@@ -125,8 +131,7 @@ const StartCodingInterview = () => {
     if (!question) return;
 
     const savedCode =
-      typeof question.userCode === "string" &&
-      question.userCode.trim() !== ""
+      typeof question.userCode === "string" && question.userCode.trim() !== ""
         ? question.userCode
         : question.starterCode?.[language] || "";
 
@@ -135,46 +140,102 @@ const StartCodingInterview = () => {
     setActiveTab("description");
   }, [question, language]);
 
-    // =========================================================
 
- const handleRun = async () => {
-  if (!id || !question || isRunning) return;
+  // =========================================================
 
-  try {
-    setIsRunning(true);
-    setTestResult(null);
+  const handleSubmissionError = (error) => {
+  console.error("❌ Submission error:", error);
 
-    const res = await codeSubmitAI(id, currentQuestion, language, code);
+  const responseData = error?.response?.data;
 
-    if (res) {
-      setTestResult(res);
-      console.log(testResult);
-    }
-  } catch (error) {
-    console.error("Submission error:", error);
+  const message =
+    responseData?.message ||
+    responseData?.msg ||
+    responseData?.error ||
+    error?.message ||
+    "Something went wrong while submitting your code.";
 
-    setTestResult({
-      success: false,
-      status: "Server Error",
-      failedTestCase: 1, // Assumes it failed immediately
-      message: error.response?.data?.msg || "Failed to submit code.",
-    });
-  } finally {
-    setIsRunning(false);
-  }
+  const status =
+    responseData?.status ||
+    "Server Error";
+
+  setTestResult({
+    success: false,
+    status,
+    failedTestCase: responseData?.failedTestCase || 1,
+    isHidden: responseData?.isHidden || false,
+    message,
+    actualOutput:
+      responseData?.actualOutput ?? "",
+    expectedOutput:
+      responseData?.expectedOutput ?? "",
+    executionTime:
+      responseData?.executionTime ?? 0,
+  });
 };
 
-  // =========================================================
-  // MONACO EDITOR MOUNT
-  // =========================================================
-  const handleEditorMount = (editor) => {
-    editorRef.current = editor;
-    editor.focus();
+  const handleRun = async () => {
+    if (!id || !question || isRunning || isSubmitting) return;
 
-    editor.addCommand(2048 | 3, () => {
-      handleRun();
-    });
+    try {
+      setIsRunning(true);
+      setTestResult(null);
+
+      const res = await codeSubmitAI(
+        id,
+        currentQuestion,
+        language,
+        code
+      );
+
+      if (res) {
+        setTestResult(res);
+      }
+    } catch (error) {
+      handleSubmissionError(error);
+    } finally {
+      setIsRunning(false);
+    }
   };
+
+  // =========================================================
+  // SUBMIT CODE
+  // =========================================================
+  const handleSubmit = async () => {
+    if (!id || !question || isRunning || isSubmitting) return;
+
+    try {
+      setisSubmitting(true);
+      setTestResult(null);
+
+      const res = await codeSubmitAI(
+        id,
+        currentQuestion,
+        language,
+        code
+      );
+
+      if (res) {
+        setTestResult(res);
+      }
+    } catch (error) {
+      handleSubmissionError(error);
+    } finally {
+      setisSubmitting(false);
+    }
+  };
+
+  const handleEditorMount = (editor, monaco) => {
+  editorRef.current = editor;
+  editor.focus();
+
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+    () => {
+      handleRun();
+    }
+  );
+};
 
   const getLanguageName = (lang) => {
     switch (lang) {
@@ -217,9 +278,7 @@ const StartCodingInterview = () => {
     setCode(question?.starterCode?.[language] || "");
     setTestResult(null);
 
-    requestAnimationFrame(() =>
-      editorRef.current?.focus()
-    );
+    requestAnimationFrame(() => editorRef.current?.focus());
   };
 
   const handleQuestionChange = (index) => {
@@ -244,23 +303,6 @@ const StartCodingInterview = () => {
     }
   };
 
-  // const handleSubmit = () => {
-  //   if (!question || isRunning) return;
-
-  //   setIsRunning(true);
-  //   setTestResult(null);
-
-  //   setTimeout(() => {
-  //     setIsRunning(false);
-
-  //     setTestResult({
-  //       success: true,
-  //       passed: 0,
-  //       total: question?.testCases?.length || 0,
-  //       message: "Submission API is not connected yet.",
-  //     });
-  //   }, 1200);
-  // };
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);
@@ -271,37 +313,11 @@ const StartCodingInterview = () => {
     });
   };
 
-  useEffect(()=>{
-    console.log("Result is : ",resultAfterSubmit);
-  },[resultAfterSubmit]);
-
-  //     console.log(codeQuestionData?.codingDetails[0]?.testCases);
-  // {codeQuestionData?.codingDetails.map((idx,val)=>{
-  //     console.log(val?.testCases);
-  // })}
-
-
-  // =========================================================
-  // RENDER HELPERS
-  // =========================================================
-  if (isLoadingCodingQuestion) {
-    return (
-      <div className="min-h-screen bg-[#F0EBE3] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 bg-[#FAF8F5]/80 p-8 rounded-[24px] backdrop-blur-xl shadow-sm border border-[#D8D0C5]">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
-
-          <p className="text-sm font-medium text-zinc-500">
-            Preparing workspace...
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
       <div className="min-h-screen bg-[#F0EBE3] flex items-center justify-center px-5">
-        <div className="max-w-md w-full bg-[#FAF8F5] border border-[#D8D0C5] rounded-[24px] p-8 text-center shadow-sm">
+        <div className="max-w-md w-full bg-[#FAF8F5] border border-[#D8D0C5] rounded-3xl p-8 text-center shadow-sm">
           <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
             <XCircle className="w-6 h-6 text-red-500" />
           </div>
@@ -310,9 +326,7 @@ const StartCodingInterview = () => {
             Unable to load session
           </h2>
 
-          <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
-            {error}
-          </p>
+          <p className="text-sm text-zinc-500 mt-2 leading-relaxed">{error}</p>
         </div>
       </div>
     );
@@ -328,13 +342,11 @@ const StartCodingInterview = () => {
     );
   }
 
- const containerLayout = isFullscreen
-  ? "fixed inset-0 z-50 w-screen h-screen p-0 m-0 rounded-none bg-[#1C1C1E]"
-  : "h-screen bg-[#F0EBE3] p-3 sm:p-4 gap-3 sm:gap-4 flex flex-col";
+  const containerLayout = isFullscreen
+    ? "fixed inset-0 z-50 w-screen h-screen p-0 m-0 rounded-none bg-[#1C1C1E]"
+    : "h-screen bg-[#F0EBE3] p-3 sm:p-4 gap-3 sm:gap-4 flex flex-col";
 
-  const panelRadius = isFullscreen
-    ? "rounded-none"
-    : "rounded-[20px]";
+  const panelRadius = isFullscreen ? "rounded-none" : "rounded-[20px]";
 
   // =========================================================
   // MAIN UI
@@ -343,19 +355,13 @@ const StartCodingInterview = () => {
     <div
       className={`overflow-hidden font-sans transition-all duration-300 ${containerLayout}`}
     >
-      {/* ================================================= */}
-      {/* GLOBAL HEADER */}
-      {/* ================================================= */}
-
       {!isFullscreen && (
         <header className="h-16 shrink-0 bg-[#FAF8F5]/80 backdrop-blur-xl border border-[#D8D0C5] shadow-sm rounded-2xl flex items-center justify-between px-5 z-10 relative">
           <div className="flex items-center gap-4">
             <div className="flex gap-3">
               <Code2 className="h-6 w-6" />
 
-              <p className="font-bold tracking-wide">
-                Coding Assessment
-              </p>
+              <p className="font-bold tracking-wide">Coding Assessment</p>
             </div>
 
             <div className="h-6 w-px bg-[#CFC6BA]" />
@@ -370,33 +376,15 @@ const StartCodingInterview = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {timeLeft !== null && (
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                  timerIsLow
-                    ? "bg-red-50 text-red-600"
-                    : "bg-[#E8E1D8] text-zinc-600"
-                }`}
-              >
-                <Clock3 className="w-3.5 h-3.5" />
 
-                {formattedTime}
-              </div>
-            )}
-          </div>
         </header>
       )}
 
-      {/* ================================================= */}
-      {/* MAIN CONTENT AREA */}
-      {/* ================================================= */}
-
-     <main
-  className={`flex-1 min-h-0 flex flex-col lg:flex-row ${
-    isFullscreen ? "w-full h-full" : "gap-2 sm:gap-2"
-  } z-0`}
->
+      <main
+        className={`flex-1 min-h-0 flex flex-col lg:flex-row ${
+          isFullscreen ? "w-full h-full" : "gap-2 sm:gap-2"
+        } z-0`}
+      >
         {/* ================================================= */}
         {/* LEFT PROBLEM PANEL */}
         {/* ================================================= */}
@@ -414,7 +402,7 @@ const StartCodingInterview = () => {
                 <button
                   key={item?._id || index}
                   onClick={() => handleQuestionChange(index)}
-                  className={`flex-1 min-w-[60px] px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex-1 min-w-15 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     currentQuestion === index
                       ? "bg-[#FAF8F5] text-black shadow-sm"
                       : "text-zinc-500 hover:text-zinc-800"
@@ -429,11 +417,7 @@ const StartCodingInterview = () => {
           {/* TABS */}
 
           <div className="px-5 border-b border-[#DDD5CA] flex items-center gap-6 shrink-0 mt-2">
-            {[
-              "description",
-              "examples",
-              "constraints",
-            ].map((tab) => (
+            {["description", "examples", "constraints"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -446,7 +430,7 @@ const StartCodingInterview = () => {
                 {tab}
 
                 {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black rounded-t-full" />
+                  <span className="absolute bottom-0 left-0 right-0 h- bg-black rounded-t-full" />
                 )}
               </button>
             ))}
@@ -467,8 +451,8 @@ const StartCodingInterview = () => {
                       question.difficulty === "easy"
                         ? "bg-emerald-50 text-emerald-600"
                         : question.difficulty === "medium"
-                        ? "bg-amber-50 text-amber-600"
-                        : "bg-rose-50 text-rose-600"
+                          ? "bg-amber-50 text-amber-600"
+                          : "bg-rose-50 text-rose-600"
                     }`}
                   >
                     {question.difficulty}
@@ -614,18 +598,16 @@ const StartCodingInterview = () => {
                   {Array.isArray(question.constraints) &&
                   question.constraints.length > 0 ? (
                     <div className="space-y-3">
-                      {question.constraints.map(
-                        (constraint, index) => (
-                          <div
-                            key={index}
-                            className="flex gap-3 items-start bg-[#F3EEE8] px-4 py-3 rounded-xl border border-[#E2DAD0]"
-                          >
-                            <code className="text-sm text-zinc-700 font-mono">
-                              {constraint}
-                            </code>
-                          </div>
-                        )
-                      )}
+                      {question.constraints.map((constraint, index) => (
+                        <div
+                          key={index}
+                          className="flex gap-3 items-start bg-[#F3EEE8] px-4 py-3 rounded-xl border border-[#E2DAD0]"
+                        >
+                          <code className="text-sm text-zinc-700 font-mono">
+                            {constraint}
+                          </code>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className="text-sm text-zinc-500">
@@ -665,7 +647,7 @@ const StartCodingInterview = () => {
             <button
               disabled={currentQuestion === 0}
               onClick={handlePrevious}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-zinc-600 hover:bg-[#FAF8F5] hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-zinc-600 hover:bg-[#FAF8F5] hover:shadow-xs disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
               Previous
@@ -674,7 +656,7 @@ const StartCodingInterview = () => {
             <button
               disabled={currentQuestion === questions.length - 1}
               onClick={handleNext}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-zinc-600 hover:bg-[#FAF8F5] hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-zinc-600 hover:bg-[#FAF8F5] hover:shadow-sm disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
             >
               Next
               <ChevronRight className="w-4 h-4" />
@@ -685,189 +667,443 @@ const StartCodingInterview = () => {
         {/* ================================================= */}
         {/* RIGHT CODE PANEL */}
         {/* ================================================= */}
+             <section className="w-full flex-1 min-h-0 flex flex-col bg-[#1C1C1E] overflow-hidden rounded-2xl ">
 
-        <section
-          className={`flex-1 min-w-0 bg-[#1C1C1E] flex flex-col min-h-0 border border-black/10 shadow-lg overflow-hidden ${panelRadius}`}
+  {/* ===================================================== */}
+  {/*                  CODE EDITOR SECTION                  */}
+  {/* ===================================================== */}
+
+  <section className="flex-1 min-h-0 flex flex-col overflow-hidden">
+
+    {/* EDITOR HEADER */}
+    <div className="h-14 shrink-0 bg-[#2C2C2E]/40 border-b border-white/5 flex items-center justify-between px-4 backdrop-blur-md">
+
+      {/* LEFT OPTIONS */}
+      <div className="flex items-center gap-3">
+
+        <div className="relative">
+          <select
+            value={language}
+            onChange={(e) => {
+              setLanguage(e.target.value);
+              setTestResult(null);
+            }}
+            className="appearance-none bg-[#3A3A3C] border border-white/10 hover:border-white/20 text-white text-xs font-medium rounded-full pl-4 pr-8 py-1.5 outline-none cursor-pointer transition-all shadow-sm"
+          >
+            {availableLanguages.map((lang) => (
+              <option key={lang} value={lang}>
+                {getLanguageName(lang)}
+              </option>
+            ))}
+          </select>
+
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            <ChevronRight className="w-3 h-3 text-white/50 rotate-90" />
+          </div>
+        </div>
+
+        <button
+          onClick={handleResetCode}
+          className="p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all"
+          title="Reset code"
         >
-          {/* EDITOR HEADER */}
+          <RotateCcw className="w-4 h-4" />
+        </button>
 
-          <div className="h-14 shrink-0 bg-[#2C2C2E]/40 border-b border-white/5 flex items-center justify-between px-4 backdrop-blur-md">
-            {/* LEFT OPTIONS */}
+      </div>
 
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <select
-                  value={language}
-                  onChange={(e) => {
-                    setLanguage(e.target.value);
-                    setTestResult(null);
-                  }}
-                  className="appearance-none bg-[#3A3A3C] border border-white/10 hover:border-white/20 text-white text-xs font-medium rounded-full pl-4 pr-8 py-1.5 outline-none cursor-pointer transition-all shadow-sm"
+
+      {/* RIGHT OPTIONS */}
+      <div className="flex items-center gap-2">
+
+<div className="flex items-center justify-center text-white">
+  {isDark ? (
+    <button
+      onClick={mode}
+      className="flex items-center justify-center w-9 h-9 rounded-full
+                 bg-white/5 border border-white/10
+                 text-white/70
+                 hover:bg-white/10 hover:text-white
+                 hover:border-white/20
+                 transition-all duration-200
+                 active:scale-90
+                 cursor-pointer"
+      aria-label="Switch to light mode"
+    >
+      <MoonIcon size={18} strokeWidth={2} />
+    </button>
+  ) : (
+    <button
+      onClick={mode}
+      className="flex items-center justify-center w-9 h-9 rounded-full
+                 bg-white/5 border border-black/10
+                 text-white/90
+                 hover:bg-black/60 hover:text-white
+                 hover:border-black/20
+                 transition-all duration-200
+                 active:scale-90
+                 cursor-pointer"
+      aria-label="Switch to dark mode"
+    >
+      <Sun size={18} strokeWidth={2} />
+    </button>
+  )}
+</div>
+
+
+
+        <button
+          onClick={handleRun}
+          disabled={isRunning || isSubmitting}
+          className="flex items-center gap-2 px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold disabled:opacity-50 transition-all shadow-md"
+        >
+          {isRunning ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Play className="w-3.5 h-3.5" />
+          )}
+
+          {isRunning ? "Running..." : "Run"}
+        </button>
+
+
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting || isRunning}
+          className="flex items-center gap-2 px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold disabled:opacity-50 transition-all shadow-md"
+        >
+          {isSubmitting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Send className="w-3.5 h-3.5" />
+          )}
+
+          {isSubmitting ? "Submitting..." : "Submit"}
+        </button>
+
+
+        <button
+          onClick={toggleFullscreen}
+          className="p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all"
+        >
+          {isFullscreen ? (
+            <LucideMinimize className="w-4 h-4" />
+          ) : (
+            <LucideMaximize className="w-4 h-4" />
+          )}
+        </button>
+
+      </div>
+
+    </div>
+
+
+    {/* ================================================= */}
+    {/*                  MONACO EDITOR                    */}
+    {/* ================================================= */}
+
+    <div className="flex-1 min-h-0 relative">
+
+      <Editor
+        height="100%"
+        language={getMonacoLanguage(language)}
+        value={code}
+        onChange={(value) => setCode(value || "")}
+        onMount={handleEditorMount}
+        theme= {themeMode}
+        options={{
+          fontSize: 14,
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+
+          lineHeight: 24,
+
+          minimap: {
+            enabled: false,
+          },
+
+          automaticLayout: true,
+
+          wordWrap: "off",
+
+          scrollBeyondLastLine: false,
+
+          smoothScrolling: true,
+
+          cursorBlinking: "smooth",
+
+          cursorSmoothCaretAnimation: "on",
+
+          renderWhitespace: "selection",
+
+          bracketPairColorization: {
+            enabled: true,
+          },
+
+          tabSize: 4,
+
+          insertSpaces: true,
+
+          autoIndent: "full",
+
+          suggestOnTriggerCharacters: true,
+
+          quickSuggestions: true,
+
+          folding: true,
+
+          lineNumbers: "on",
+
+          glyphMargin: false,
+
+          scrollbar: {
+            verticalScrollbarSize: 8,
+            horizontalScrollbarSize: 8,
+            useShadows: false,
+          },
+
+          overviewRulerBorder: false,
+
+          hideCursorInOverviewRuler: true,
+
+          renderLineHighlight: "none",
+
+          padding: {
+            top: 24,
+            bottom: 24,
+          },
+        }}
+      />
+
+    </div>
+
+  </section>
+
+
+  <section
+    style={{
+      height: `${testPanelHeight}px`,
+    }}
+    className={`shrink-0 bg-[#1C1C1E] border-t border-white/10 flex flex-col ${
+      isDragging ? "select-none" : "" 
+    } `}
+  >
+
+    {/* ================================================ */}
+    {/* RESIZE HANDLE                                    */}
+    {/* ================================================ */}
+
+    <div
+      onMouseDown={startResize}
+      className="h-1.5 shrink-0 cursor-row-resize hover:bg-white/20 transition-colors group relative"
+    >
+
+      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-15 h-1 rounded-full bg-white/20 group-hover:bg-white/40 transition-colors" />
+
+    </div>
+
+
+    <div className="h-12 shrink-0 px-5 flex items-center justify-between border-b border-white/5">
+
+      <div className="flex items-center gap-5">
+
+        <div className="flex items-center gap-2">
+
+          <div className="border border-green-500 p-px rounded-xs">
+            <Terminal  className="w-4 h-4 text-green-400  " />
+          </div>
+
+          <span className="text-sm font-medium text-white">
+            Testcase
+          </span>
+
+        </div>
+
+
+        {/* RESULT */}
+        {testResult && (
+          <>
+
+            <div className="h-4 w-px bg-white/10" />
+
+            <div
+              className={`flex items-center gap-2 text-xs font-medium ${
+                testResult.success
+                  ? "text-emerald-400"
+                  : "text-rose-400"
+              }`}
+            >
+
+              {testResult.success ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+
+              {testResult.status === "Accepted"
+                ? testResult.message
+                : testResult.status}
+
+            </div>
+
+
+            <span className="text-xs text-white/40">
+              {testResult.success
+                ? `${testResult.passedTestCases ?? 0}/${testResult.totalTestCases ?? 0} passed`
+                : `${Math.max(
+                    0,
+                    (testResult.failedTestCase || 1) - 1
+                  )}/${testResult.totalTestCases ?? question?.testCases?.length ?? 0} passed`}
+            </span>
+
+          </>
+        )}
+
+      </div>
+
+
+      {/* RIGHT */}
+      <div className="text-[11px] text-white/30">
+        Drag to resize
+      </div>
+
+    </div>
+
+
+    {/* ================================================ */}
+    {/* TESTCASE CONTENT                                */}
+    {/* ================================================ */}
+
+    <div className="flex-1 min-h-0 overflow-y-auto">
+
+      <div className="p-4">
+
+        <div className="space-y-3">
+          {(() => {
+            const sourceTestCases =
+  Array.isArray(testResult?.testCases) &&
+  testResult.testCases.length > 0
+    ? testResult.testCases
+    : question?.testCases || [];
+
+            const visibleTestCases = sourceTestCases
+              .filter((testCase) => !testCase?.isHidden)
+              .slice(0, 4);
+
+            return visibleTestCases.map((testCase, idx) => {
+             
+              const result = testResult?.testCases?.find(
+  (item) =>
+    Number(item?.testCaseNumber) ===
+    Number(testCase?.testCaseNumber)
+);
+
+              const passed =
+                result?.passed ??
+                result?.success ??
+                null;
+
+              return (
+                <div
+                  key={testCase?.testCaseNumber ?? idx}
+                  className="rounded-lg border border-white/5 bg-[#242426] overflow-hidden"
                 >
-                  {availableLanguages.map((lang) => (
-                    <option key={lang} value={lang}>
-                      {getLanguageName(lang)}
-                    </option>
-                  ))}
-                </select>
+                  {/* TESTCASE TITLE */}
+                  <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-white">
+                        Case {idx + 1}
+                      </span>
 
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <ChevronRight className="w-3 h-3 text-white/50 rotate-90" />
-                </div>
-              </div>
+                      {passed === true && (
+                        <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Passed
+                        </span>
+                      )}
 
-              <button
-                onClick={handleResetCode}
-                className="p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                title="Reset code"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            </div>
+                      {passed === false && (
+                        <span className="flex items-center gap-1 text-[11px] text-rose-400">
+                          <XCircle className="w-3.5 h-3.5" />
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-            {/* RIGHT OPTIONS */}
+                  {/* TESTCASE BODY */}
+                  <div className="grid grid-cols-3 gap-3 p-3">
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleFullscreen}
-                className="p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                title={
-                  isFullscreen
-                    ? "Exit fullscreen"
-                    : "Fullscreen editor"
-                }
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="w-4 h-4" />
-                ) : (
-                  <Maximize2 className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
+  {/* INPUT */}
+  <div>
+    <div className="text-[10px] uppercase tracking-wider text-white/30 mb-2">
+      Input
+    </div> 
+      <pre className="bg-[#1C1C1E] rounded-md p-3 text-xs text-white/70 font-mono overflow-x-auto">
+        {testCase?.input || "—"}
+      </pre>
+    
+  </div>
 
-          {/* MONACO EDITOR */}
+  {/* EXPECTED OUTPUT */}
+  <div>
+    <div className="text-[10px] uppercase tracking-wider text-white/30 mb-2">
+      Expected Output
+    </div>
 
-          <div className="flex-1 min-h-10 relative">
-            <Editor
-              height="100%"
-              language={getMonacoLanguage(language)}
-              value={code}
-              onChange={(value) => setCode(value || "")}
-              onMount={handleEditorMount}
-              theme="vs-dark"
-              options={{
-                fontSize: 14,
-                fontFamily:
-                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                lineHeight: 24,
-                minimap: { enabled: false },
-                automaticLayout: true,
-                wordWrap: "off",
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
-                cursorBlinking: "smooth",
-                cursorSmoothCaretAnimation: "on",
-                renderWhitespace: "selection",
-                bracketPairColorization: {
-                  enabled: true,
-                },
-                tabSize: 4,
-                insertSpaces: true,
-                autoIndent: "full",
-                suggestOnTriggerCharacters: true,
-                quickSuggestions: true,
-                folding: true,
-                lineNumbers: "on",
-                glyphMargin: false,
-                scrollbar: {
-                  verticalScrollbarSize: 8,
-                  horizontalScrollbarSize: 8,
-                  useShadows: false,
-                },
-                overviewRulerBorder: false,
-                hideCursorInOverviewRuler: true,
-                renderLineHighlight: "none",
-                padding: {
-                  top: 24,
-                  bottom: 24,
-                },
-              }}
-            />
-          </div>
+    
+      <pre className="bg-[#1C1C1E] rounded-md p-3 text-xs text-white/70 font-mono overflow-x-auto">
+        {testCase?.expectedOutput ||
+          result?.expectedOutput ||
+          "—"}
+      </pre>
+  </div>
 
-          {/* TEST RESULT OVERLAY */}
+  {/* ACTUAL OUTPUT */}
+  <div>
+    <div className="text-[10px] uppercase tracking-wider text-white/30 mb-2">
+      Output
+    </div>
 
-        {/* TEST RESULT OVERLAY */}
-{testResult && (
-  <div className="shrink-0 bg-[#2C2C2E] border-t border-white/5 p-4 animate-in slide-in-from-bottom-4 duration-300">
-    <div className="flex items-center gap-4">
-      <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-          testResult.success
-            ? "bg-emerald-500/20 text-emerald-400"
-            : "bg-rose-500/20 text-rose-400"
+    {isRunning || isSubmitting ? (
+      <div className="bg-[#1C1C1E] rounded-md p-3 h-11 animate-pulse">
+        <div className="h-3 w-3/4 bg-white/10 rounded" />
+      </div>
+    ) : (
+      <pre
+        className={`bg-[#1C1C1E] rounded-md p-3 text-xs font-mono overflow-x-auto ${
+          passed === true
+            ? "text-emerald-400"
+            : passed === false
+              ? "text-rose-400"
+              : "text-white/50"
         }`}
       >
-        {testResult.success ? (
-          <CheckCircle2 className="w-5 h-5" />
-        ) : (
-          <XCircle className="w-5 h-5" />
-        )}
-      </div>
-
-      <div>
-        {/* Render the status (e.g., "Accepted", "Wrong Answer", "Runtime Error") */}
-        <h4 className="text-sm font-semibold text-white tracking-tight">
-          {testResult.status === "Accepted" ? testResult.message : testResult.status}
-        </h4>
-
-        {/* Calculate passed/total dynamically based on failure point */}
-        <p className="text-xs text-white/50 mt-0.5 font-medium">
-          {testResult.success
-            ? `${testResult.passedTestCases} / ${testResult.totalTestCases} test cases passed`
-            : `${(testResult.failedTestCase || 1) - 1} / ${question?.testCases?.length || 0} test cases passed`}
-        </p>
-        
-        {/* If it failed and there is a specific error message (like a compile error), show it */}
-        {!testResult.success && testResult.message && (
-          <p className="text-[11px] text-rose-400 mt-1.5 font-mono line-clamp-2" title={testResult.message}>
-            {testResult.message}
-          </p>
-        )}
-      </div>
-    </div>
+        {result?.actualOutput  ??
+          result?.output ??
+          "Run your code to see output"}
+      </pre>
+    )}
   </div>
-)}
 
-          {/* ACTION FOOTER */}
+</div>
+                </div>
+              );
+            });
+          })()}
 
-          <div className="h-16 shrink-0 bg-[#1C1C1E] border-t border-white/5 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Terminal className="w-4 h-4 text-white/30" />
+        </div>
 
-              <span className="text-xs font-medium text-white/30">
-                Console
-              </span>
-            </div>
+      </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRun}
-                disabled={isRunning}
-                className="flex items-center gap-2 px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold disabled:opacity-50 transition-all shadow-md"
-              >
-                {isRunning ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
+    </div>
 
-                Submit
-              </button>
-            </div>
-          </div>
-        </section>
+  </section>
+
+</section>
+      
+
+
       </main>
     </div>
   );

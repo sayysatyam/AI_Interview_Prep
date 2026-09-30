@@ -9,7 +9,7 @@ const Footer = () => {
     Product: [
       { label: "Start Interview", path: "/startInterview" },
       { label: "Interview Modes", path: "/#interview-mode" },
-      { label: "AI Capabilities", path: "/#ai-capabilities",  },
+      { label: "AI Capabilities", path: "/#features",  },
       { label: "View History", path: "/history" },
       { label: "Pricing", path: "/pricing" },
     ],

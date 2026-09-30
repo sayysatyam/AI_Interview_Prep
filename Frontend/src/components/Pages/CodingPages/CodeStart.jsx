@@ -9,7 +9,7 @@ const CodeStart = () => {
   const location = useLocation();
 
   const [prompt, setPrompt] = useState("");
-  const [errorNow, seterrorNow] = useState("");
+  // const [errorNow, seterrorNow] = useState("");
 const promptRef = useRef(null);
   const {
     codingQuestionGenerator,
@@ -46,7 +46,7 @@ const promptRef = useRef(null);
     }
   } catch (error) {
     console.log(error);
-    seterrorNow(error);
+    // seterrorNow(error);
   }
 };
 
@@ -71,7 +71,7 @@ const promptRef = useRef(null);
       }
     } catch (error) {
       console.log(error);
-      seterrorNow(error);
+      // seterrorNow(error);
     }
   };
 
@@ -395,7 +395,7 @@ const promptRef = useRef(null);
         </div>
 
         {/* VISUAL BANNER */}
-        <div className="mt-12 rounded-3xl overflow-hidden relative min-h-[230px] border border-gray-200">
+        <div className="mt-12 rounded-3xl overflow-hidden relative min-h-57.5 border border-gray-200">
 
           <img
             src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=85"
