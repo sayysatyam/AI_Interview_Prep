@@ -16,7 +16,10 @@ const userCreditPopupRef = useRef();
     { label: "Home", path: "/" },
     { label: "Features", path: "/#features" },
     { label: "Interview", path: "/startInterview" },
-    { label: "About", path: "/about" },
+    {label:"Code",path:"/code"},
+    { label: "InterviewHistory", path: "/history" },
+    {label : "CodeHistory",path:"/codeHistory"},
+    
   ];
   useEffect(() => {
   const handleClickOutside = (event) => {

@@ -5,6 +5,7 @@ const extractTextFromPDF = require("../MiddleWare/extractText");
 const userDetails = require("../models/auth");
 const InterviewDetails = require("../models/interviewModel");
 const axios = require("axios");
+const { redisClient } = require("../config/redis");
 const OPENROUTER_HEADERS = {
   Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
   "Content-Type": "application/json",
@@ -260,6 +261,7 @@ Each object MUST follow this exact structure:
         answer: q.answer,
       })),
     });
+    await redisClient.del(`interview-history:${req.userId}:page:1:limit:20`);
     await userInterviewDetails.save();
 
     res.json({
@@ -323,7 +325,7 @@ const submitAnswer = async (req, res) => {
         communication: 0,
         correctness: 0,
         status: "skipped",
-        timeTaken:timeTaken
+        timeTaken: timeTaken,
       };
 
       questions.feedback = "Time limit exceeded. Answer not evaluated.";
@@ -466,18 +468,18 @@ Use this exact JSON structure:
     }
 
     questions.userAnswer = answer;
-    
+
     questions.evaluation = {
       score: parsed.score,
       confidence: parsed.confidence,
       communication: parsed.communication,
       correctness: parsed.correctness,
       status: "answered",
-      timeTaken : timeTaken
+      timeTaken: timeTaken,
     };
     questions.feedback = parsed.feedback;
 
-  reviewInterview.status = "Completed";
+    reviewInterview.status = "Completed";
     await reviewInterview.save();
 
     return res.json({
@@ -508,36 +510,35 @@ const calculate = async (req, res) => {
       });
     }
 
-
     let totalScore = 0;
     let confidenceScore = 0;
     let communicationScore = 0;
     let totalCorrect = 0;
 
     const formattedInterviewDetails = {
-      role : interviewData.role,
+      role: interviewData.role,
       experience: interviewData.experience,
-      mode : interviewData.mode,
-        questions: interviewData.interviewDetails.map((q) => ({
-    question: q.question,
-    difficulty: q.difficulty,
+      mode: interviewData.mode,
+      questions: interviewData.interviewDetails.map((q) => ({
+        question: q.question,
+        difficulty: q.difficulty,
 
-    idealAnswer: q.answer,
+        idealAnswer: q.answer,
 
-    userAnswer: q.userAnswer,
+        userAnswer: q.userAnswer,
 
-    feedback: q.feedback,
+        feedback: q.feedback,
 
-    evaluation: {
-      score: q.evaluation.score,
-      confidence: q.evaluation.confidence,
-      communication: q.evaluation.communication,
-      correctness: q.evaluation.correctness,
-      timeTaken: q.evaluation.timeTaken,
-      status: q.evaluation.status,
-    },
-  })),
-    }
+        evaluation: {
+          score: q.evaluation.score,
+          confidence: q.evaluation.confidence,
+          communication: q.evaluation.communication,
+          correctness: q.evaluation.correctness,
+          timeTaken: q.evaluation.timeTaken,
+          status: q.evaluation.status,
+        },
+      })),
+    };
     const FeedbackPrompt = `
 You are an advanced AI Interview Evaluator.
 
@@ -643,11 +644,11 @@ Strict Rules:
 - Mention consistency across questions
 `;
 
-     const answerResult = await axios.post(
+    const answerResult = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         model: "openai/gpt-4o-mini",
-        messages: [{ role: "user", content: FeedbackPrompt}],
+        messages: [{ role: "user", content: FeedbackPrompt }],
       },
       { headers: OPENROUTER_HEADERS },
     );
@@ -665,7 +666,6 @@ Strict Rules:
         raw: text,
       });
     }
-
 
     const totalQuestion = interviewData.interviewDetails.length;
 
@@ -693,9 +693,9 @@ Strict Rules:
 
     // ✅ accuracy (out of 100)
     const accuracy =
-  totalQuestion > 0
-    ? Math.floor((totalScore / (totalQuestion * 100)) * 100)
-    : 0;
+      totalQuestion > 0
+        ? Math.floor((totalScore / (totalQuestion * 100)) * 100)
+        : 0;
 
     let rating;
     if (avgScore >= 80) rating = "Excellent";
@@ -706,7 +706,7 @@ Strict Rules:
 
     return res.json({
       success: true,
-      average : avgScore,
+      average: avgScore,
       result: {
         totalQuestions: totalQuestion,
         averageScore: avgScore,
@@ -716,10 +716,9 @@ Strict Rules:
         accuracy,
         rating,
       },
-      feedback:{
-        parsed
-      }
-
+      feedback: {
+        parsed,
+      },
     });
   } catch (error) {
     console.error("Calculate Error:", error.message);
@@ -731,18 +730,94 @@ Strict Rules:
   }
 };
 
-const getHistory = async(req,res)=>{
+const getHistory = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const page = Math.max(
+      parseInt(req.query.page) || 1,
+      1
+    );
+
+    const limit = Math.min(
+      parseInt(req.query.limit) || 10,
+      30
+    );
+
+    const skip = (page - 1) * limit;
+
+    const cacheKey = `interview-history:${userId}:page:${page}:limit:${limit}`;
+
+    // -----------------------------
+    // 1. Check Redis
+    // -----------------------------
     try {
-      const result = await InterviewDetails.find({createdBy:req.userId})
-      .sort({createdAt:-1})
-      .select("role experience mode status interviewDetails createdAt");
+      const cachedHistory = await redisClient.get(cacheKey);
 
-      return res.status(200).json(result)
-
-    } catch (error) {
-      return res.status(500).json({msg : error.data?.message || "Something Went Wrong"});
+      if (cachedHistory) {
+        return res.status(200).json({
+          result: JSON.parse(cachedHistory),
+          page,
+          limit,
+          source: "cache",
+        });
+      }
+    } catch (redisError) {
+      console.error("Redis read error:", redisError);
     }
-}
+
+    // -----------------------------
+    // 2. Get history from MongoDB
+    // -----------------------------
+    const result = await InterviewDetails.find(
+      { createdBy: userId },
+      {
+        role: 1,
+        experience: 1,
+        mode: 1,
+        status: 1,
+        interviewDetails: 1,
+        createdAt: 1,
+      }
+    )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // -----------------------------
+    // 3. Cache result
+    // -----------------------------
+    try {
+      await redisClient.set(
+        cacheKey,
+        JSON.stringify(result),
+        {
+          EX: 300,
+        }
+      );
+    } catch (redisError) {
+      console.error("Redis write error:", redisError);
+    }
+
+    // -----------------------------
+    // 4. Send response
+    // -----------------------------
+    return res.status(200).json({
+      result,
+      page,
+      limit,
+      source: "database",
+    });
+
+  } catch (error) {
+    console.error("Interview history error:", error);
+
+    return res.status(500).json({
+      msg: error?.message || "Something Went Wrong",
+    });
+  }
+};
 const getParticularHistory = async (req, res) => {
   try {
     const { hisId } = req.params;
@@ -769,5 +844,5 @@ module.exports = {
   calculate,
   submitAnswer,
   getHistory,
-  getParticularHistory
+  getParticularHistory,
 };

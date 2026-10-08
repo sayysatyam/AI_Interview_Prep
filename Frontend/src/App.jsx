@@ -24,6 +24,10 @@ import History from "./components/Pages/History";
 import HistoryStat from "./components/Pages/HistoryStat";
 import CodeStart from "./components/Pages/CodingPages/CodeStart";
 import StartCodingInterview from "./components/Pages/CodingPages/StartCodingInterview";
+import CodeHistory from "./components/Pages/CodingPages/codeHistory";
+import MainHistoryPage from "./components/Pages/MainHistoryPage";
+import CodingRoundAnalysis from "./components/Pages/CodingPages/CodingRoundAnalysis";
+import CodeHistoryAnalysis from "./components/Pages/CodingPages/CodeHistoryAnalysis";
 
 const ProtectedRoutes = ({ children }) => {
   const { isAuthenticated, user } = userAuthStore();
@@ -71,7 +75,8 @@ const App = () => {
   return (
     <>
       <Toaster
-        position="top-right"
+        position="top-center"
+        reverseOrder={false}
         toastOptions={{
           duration: 3000,
           style: {
@@ -112,7 +117,9 @@ const App = () => {
           />
 
           <Route path="/" element={<Home />} />
-          <Route path="/history" element={<History />} />
+          <Route path="/history" element={<ProtectedRoutes>
+            <History/>
+          </ProtectedRoutes>} />
           <Route path="/historyStats/:hisId" element={<HistoryStat />} />
           <Route
             path="forgot-password"
@@ -151,6 +158,13 @@ const App = () => {
           <Route path="/evaluation" element={<AfterSubmitInterview />} />
           <Route path="/code" element={<CodeStart />} />
           <Route path="/startCode/:id" element={<StartCodingInterview />} />
+          <Route path="/codeHistory" element={<ProtectedRoutes>
+            <CodeHistory/>
+          </ProtectedRoutes>}/>
+          <Route path="/historymain" element={<MainHistoryPage/>}/>
+
+          <Route path="/code/:id/analysis" element={<CodingRoundAnalysis />} />
+          <Route path = "/code/:id/history" element={<CodeHistoryAnalysis/>}/>
         </Routes>
         <div>
           <Footer />

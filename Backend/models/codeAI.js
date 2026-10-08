@@ -9,6 +9,9 @@ const codingQuestionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  userCode:{
+            type:String,
+        },
 
   difficulty: {
     type: String,
@@ -266,12 +269,23 @@ const CodingSchema = new mongoose.Schema(
     // TIME
     // ==========================================
     startedAt: {
-      type: Date,
-    },
+  type: Date,
+  default: Date.now
+},
 
-    completedAt: {
-      type: Date,
-    },
+duration: {
+  type: Number,
+  required: true // seconds
+},
+
+endsAt: {
+  type: Date,
+  required: true
+},
+
+completedAt: {
+  type: Date
+},
 
     // ==========================================
     // QUESTIONS
@@ -311,7 +325,10 @@ const CodingSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-
+CodingSchema.index({
+  createdBy: 1,
+  createdAt: -1,
+});
 const CodingDetails = mongoose.model("CodingDetails", CodingSchema);
 
 module.exports = CodingDetails;

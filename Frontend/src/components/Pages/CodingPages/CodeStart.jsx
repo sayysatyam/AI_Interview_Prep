@@ -4,6 +4,7 @@ import { Loader } from "lucide-react";
 import { userAuthStore } from "../../../AuthStore/user";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useRef } from "react";
+import toast from "react-hot-toast";
 const CodeStart = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -15,12 +16,15 @@ const promptRef = useRef(null);
     codingQuestionGenerator,
     isLoadingCodingQuestion,
     codeQuestionData,
-    codingID
+    codingID,
+    error,
+    isExistingSession
   } = codeAIStore();
 
   const { user, isAuthenticated } = userAuthStore();
 
-
+const [Error, setError] = useState(error || "");
+const [countDown, setcountDown] = useState(null);
   const handleStart = async (promptValue) => {
   if (!promptValue?.trim()) return;
 
@@ -38,17 +42,49 @@ const promptRef = useRef(null);
 
   try {
     const result = await codingQuestionGenerator(promptValue);
+    
 
-    if (result) {
-      console.log("Coding question generated:", result);
+    if (result?.codingID) {
+  if (result.isExistingSession) {
+    setcountDown(3);
 
-      navigate(`/startCode/${result.codingID}`);
-    }
+    let count = 3;
+
+    const interval = setInterval(() => {
+      count--;
+
+      if (count === 0) {
+        clearInterval(interval);
+        setcountDown(null);
+
+        navigate(`/startCode/${result.codingID}`);
+        return;
+      }
+
+      setcountDown(count);
+    }, 1000);
+
+    return;
+  }
+
+  // New assessment
+  navigate(`/startCode/${result.codingID}`);
+}
   } catch (error) {
     console.log(error);
     // seterrorNow(error);
   }
 };
+useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(''); // Clears the error state
+      }, 3000);
+
+    
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   useEffect(() => {
   if (!isAuthenticated || !user) return;
@@ -64,11 +100,32 @@ const promptRef = useRef(null);
     try {
       const result = await codingQuestionGenerator(pendingPrompt);
 
-      if (result) {
-        console.log("Coding question generated:", result);
+   if (result?.codingID) {
+  if (result.isExistingSession) {
+    setcountDown(3);
+
+    let count = 3;
+
+    const interval = setInterval(() => {
+      count--;
+
+      if (count === 0) {
+        clearInterval(interval);
+        setcountDown(null);
 
         navigate(`/startCode/${result.codingID}`);
+        return;
       }
+
+      setcountDown(count);
+    }, 1000);
+
+    return;
+  }
+
+  // New assessment
+  navigate(`/startCode/${result.codingID}`);
+}
     } catch (error) {
       console.log(error);
       // seterrorNow(error);
@@ -127,7 +184,27 @@ const promptRef = useRef(null);
     },
   ];
 
-  return (
+  if(countDown != null){
+    return (
+      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70">
+    <div className="text-center">
+      <p className="text-white text-lg mb-3">
+        Coding assessment is active
+      </p>
+
+      <div className="text-8xl font-bold text-amber-400 animate-pulse">
+        {countDown}
+      </div>
+
+      <p className="text-zinc-400 mt-3">
+        Resuming your existing assessment...
+      </p>
+    </div>
+  </div>
+    )
+  }
+
+  return (    
     <div className="min-h-screen w-full px-5 pt-24 pb-16">
 
       <div className="max-w-6xl mx-auto">
@@ -211,6 +288,11 @@ const promptRef = useRef(null);
 
             </div>
           </div>
+          {Error && (
+        <div className="flex justify-center items-center  text-red-600 font-light text-sm px-4 py-3  animate-pulse mx-auto transition-all duration-300">
+          <p>{Error}</p>
+        </div>
+      )}
 
           {/* SUGGESTIONS */}
           <div className="flex flex-wrap justify-center gap-2 mt-5">

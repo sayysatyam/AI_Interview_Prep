@@ -13,12 +13,7 @@ const OPENROUTER_HEADERS = {
   "Content-Type": "application/json",
 };
 
-const OPENROUTER_URL =
-  "https://openrouter.ai/api/v1/chat/completions";
-
-// ======================================================
-// CODE QUESTION GENERATOR
-// ======================================================
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const codeQuesGenerator = async (req, res) => {
   const totalStart = Date.now();
@@ -48,9 +43,7 @@ const codeQuesGenerator = async (req, res) => {
 
     const user = await userDetails.findById(userId);
 
-    console.log(
-      `User DB Time: ${Date.now() - userDbStart} ms`,
-    );
+    console.log(`User DB Time: ${Date.now() - userDbStart} ms`);
 
     if (!user) {
       return res.status(404).json({
@@ -59,9 +52,30 @@ const codeQuesGenerator = async (req, res) => {
       });
     }
 
+    const existingSession = await CodingDetails.findOne({
+      createdBy: userId,
+    }).sort({ createdAt: -1 });
+
+
+        console.log("AI NOT CALLED");
+    if (existingSession) {
+      const isExpired = new Date() >= new Date(existingSession?.endsAt);
+      const isCompleted = existingSession.status === "Completed";
+
+      if (!isExpired && !isCompleted) {
+        return res.status(200).json({
+          success: false,
+          codingID: existingSession._id,
+          isExistingSession: true,
+        });
+      }
+    }
+
     // ==================================================
     // CREDIT CHECK
     // ==================================================
+
+          console.log("AI  CALLED");
 
     if (user.credits < 50) {
       return res.status(400).json({
@@ -100,10 +114,7 @@ REQUIREMENTS
 
 2. Questions may be original/custom or based on known coding problem patterns.
 
-3. Do not fabricate platform URLs or platform information.
-
 4. Every question must contain:
-
 - title
 - difficulty
 - topic
@@ -197,6 +208,7 @@ Example:
 - Never generate empty or incomplete input unless the problem explicitly requires no input.
 - Test-case input must exactly follow the inputFormat.
 - For problems requiring n/counts/dimensions, provide the required values and exactly the required number of elements.
+
 ==================================================
 REFERENCE SOLUTION
 ==================================================
@@ -212,10 +224,21 @@ The reference solution MUST:
 - handle all valid inputs
 - contain complete solution logic
 - not use external libraries or files
+- please give a best reference solution so it can support linkedlist type input and can be executed in Judge0 platform...
 
 This reference solution will later be executed using Judge0 against every generated test-case input.
 
 The output produced by Judge0 will be used as the trusted expected output.
+
+For Linked List problems:
+- Provide proper ListNode structure and construct the list from input.
+
+For Tree problems:
+- Provide proper TreeNode structure and construct the tree from input.
+
+For Graph problems:
+- Parse the graph and create the required adjacency structure.
+
 
 NEVER generate an expectedOutput field for test cases.
 
@@ -223,30 +246,196 @@ NEVER generate an expectedOutput field for test cases.
 STARTER CODE
 ==================================================
 
-Generate executable starter code for:
+Generate starter code ONLY for the user to write their own solution.
 
+CRITICAL:
+starterCode and referenceSolution are COMPLETELY SEPARATE.
+
+NEVER copy, reuse, summarize, translate, or derive solution logic from
+referenceSolution into starterCode.
+
+STARTER CODE MUST ONLY:
+
+- Read the required input from stdin.
+- Store the input in variables/data structures when necessary.
+- Create the required entry point.
+- Stop immediately after input parsing.
+- Contain TODO markers showing where the user should write the solution.
+- Compile and run successfully on Judge0.
+
+STARTER CODE MUST NOT:
+
+- Solve the problem.
+- Calculate the answer.
+- Implement any algorithm.
+- Contain solution logic.
+- Contain hardcoded answers.
+- Contain example/test-case values.
+- Print the final answer.
+- Implement helper functions that solve any part of the problem.
+- Copy anything from referenceSolution.
+
+The starter code should look like a blank coding-platform template,
+NOT like a completed solution.
+
+==================================================
+NORMAL ARRAY / STRING / NUMBER PROBLEMS
+==================================================
+
+Only read the input.
+
+C++ example style:
+
+#include <iostream>
+#include <vector>
+#include <string>
+using namespace std;
+
+int main() {
+    // Read input according to inputFormat
+
+    // TODO: Write your solution here
+
+    return 0;
+}
+
+Python example style:
+
+def main():
+    # Read input according to inputFormat
+
+    # TODO: Write your solution here
+    pass
+
+
+if __name__ == "__main__":
+    main()
+
+JavaScript example style:
+
+const fs = require("fs");
+
+const input = fs.readFileSync(0, "utf-8").trim();
+
+// TODO: Parse input and write your solution here
+
+
+==================================================
+IMPORTANT
+==================================================
+
+For simple problems, DO NOT create unnecessary functions,
+classes, algorithms, or complex structures.
+
+Only parse/store the input and leave a TODO.
+
+For example, if input is:
+
+5
+1 2 3 4 5
+
+The starter code should ONLY read/store:
+
+C++:
+
+int n;
+cin >> n;
+
+vector<int> arr(n);
+for (int i = 0; i < n; i++) {
+    cin >> arr[i];
+}
+
+// TODO: Write your solution here
+
+It MUST NOT calculate sum, maximum, minimum, sorting,
+searching, or any other answer.
+
+==================================================
+LINKED LIST
+==================================================
+
+For Linked List problems:
+
+- Only read the input.
+- Create ListNode structure ONLY if required by the user's coding environment.
+- Construct the linked list from input ONLY.
+- Do NOT traverse the list.
+- Do NOT reverse the list.
+- Do NOT merge the list.
+- Do NOT delete nodes.
+- Do NOT search the list.
+- Do NOT calculate anything.
+- Do NOT solve the linked-list problem.
+
+Example:
+
+struct ListNode {
+    int val;
+    ListNode* next;
+
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+
+int main() {
+    // Read input
+    // Construct list only
+
+    // TODO: Write your solution here
+
+    return 0;
+}
+
+==================================================
+TREE
+==================================================
+
+For Tree problems:
+
+- Only read the input.
+- Create TreeNode structure if required.
+- Construct the tree from input only.
+- Do NOT traverse the tree.
+- Do NOT search.
+- Do NOT calculate.
+- Do NOT modify the tree.
+- Do NOT solve the tree problem.
+
+==================================================
+GRAPH
+==================================================
+
+For Graph problems:
+
+- Only read the input.
+- Create the required graph/adjacency structure if necessary.
+- Do NOT perform DFS.
+- Do NOT perform BFS.
+- Do NOT find shortest paths.
+- Do NOT calculate MST.
+- Do NOT solve the graph problem.
+
+==================================================
+FINAL STARTER CODE RULE
+==================================================
+
+The starter code must contain ONLY:
+
+1. Imports/includes.
+2. Required input reading.
+3. Required basic data structures.
+4. Required entry point.
+5. TODO comment.
+
+Nothing else.
+
+The referenceSolution may contain complete solution logic,
+but starterCode MUST NEVER contain that logic.
+
+Return executable starter code for:
 - cpp
 - python
 - javascript
-
-Starter code must:
-
-- read from stdin
-- write to stdout
-- contain the required entry point
-- contain no solution logic
-- not use class Solution
-- not use LeetCode-style wrappers
-
-C++ must contain main().
-
-Python must contain main() and:
-
-if __name__ == "__main__":
-
-JavaScript must use:
-
-fs.readFileSync(0, "utf-8")
 
 ==================================================
 TIME AND MEMORY
@@ -262,8 +451,9 @@ PLATFORM FIELDS
 
 For original/custom or unverified platform questions:
 
-"redirectUrl": null
-"platformImage": null
+"redirectUrl": string(url) 
+"platformImage": string(url)
+- (give null if no url is found but try to gives url)
 
 Never fabricate platform information.
 
@@ -291,8 +481,8 @@ JSON STRUCTURE
       "title": "Example title",
       "difficulty": "medium",
       "topic": "Arrays",
-      "redirectUrl": null,
-      "platformImage": null,
+      "redirectUrl": String,
+      "platformImage": String,
       "description": "Complete problem description",
       "constraints": [
         "1 <= n <= 100000"
@@ -340,7 +530,7 @@ JSON STRUCTURE
       "memoryLimit": 256
     }
   ],
-  "difficulty": "medium"
+  "difficulty": "medium",
 }
 
 ==================================================
@@ -370,10 +560,7 @@ Return ONLY the JSON object.`;
     // GENERATE ONE QUESTION
     // ==================================================
 
-    const generateOneQuestion = async (
-      questionNumber,
-      extraInstruction,
-    ) => {
+    const generateOneQuestion = async (questionNumber, extraInstruction) => {
       const questionMessage = `${message}
 
 ==================================================
@@ -439,8 +626,8 @@ REQUIRED ONE-QUESTION STRUCTURE
       "title": "...",
       "difficulty": "medium",
       "topic": "...",
-      "redirectUrl": null,
-      "platformImage": null,
+      "redirectUrl": String(url),
+      "platformImage":String(url),
       "description": "...",
       "constraints": [
         "1 <= n <= 100000"
@@ -509,6 +696,8 @@ IMPORTANT:
 - For problems requiring n/counts/dimensions, provide the required values and exactly the required number of elements.
 - Every test case must contain testCaseNumber, input and isHidden.
 - isHidden MUST be boolean.
+-don't give full solution as starter code
+--Please don't give solution as started code please
 
 ${extraInstruction}
 `;
@@ -533,8 +722,7 @@ ${extraInstruction}
         },
       );
 
-      const text =
-        response?.data?.choices?.[0]?.message?.content;
+      const text = response?.data?.choices?.[0]?.message?.content;
 
       if (!text) {
         throw new Error(
@@ -583,23 +771,14 @@ ${extraInstruction}
         !Array.isArray(question.constraints) ||
         question.constraints.length === 0 ||
         question.constraints.some(
-          (constraint) =>
-            typeof constraint !== "string" ||
-            !constraint.trim(),
+          (constraint) => typeof constraint !== "string" || !constraint.trim(),
         )
       ) {
-        throw new Error(
-          `Question ${questionNumber}: constraints invalid`,
-        );
+        throw new Error(`Question ${questionNumber}: constraints invalid`);
       }
 
-      if (
-        !Array.isArray(question.examples) ||
-        question.examples.length < 2
-      ) {
-        throw new Error(
-          `Question ${questionNumber}: insufficient examples`,
-        );
+      if (!Array.isArray(question.examples) || question.examples.length < 2) {
+        throw new Error(`Question ${questionNumber}: insufficient examples`);
       }
 
       // ==================================================
@@ -612,10 +791,7 @@ ${extraInstruction}
         );
       }
 
-      for (const [
-        testCaseIndex,
-        testCase,
-      ] of question.testCases.entries()) {
+      for (const [testCaseIndex, testCase] of question.testCases.entries()) {
         const testCaseNumber = testCaseIndex + 1;
 
         if (
@@ -640,10 +816,7 @@ ${extraInstruction}
         }
 
         // AI must NOT generate expectedOutput
-        if (Object.prototype.hasOwnProperty.call(
-          testCase,
-          "expectedOutput",
-        )) {
+        if (Object.prototype.hasOwnProperty.call(testCase, "expectedOutput")) {
           throw new Error(
             `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput must not be generated by AI`,
           );
@@ -673,22 +846,15 @@ ${extraInstruction}
         !Array.isArray(question.allowedLanguages) ||
         question.allowedLanguages.length !== 3
       ) {
-        throw new Error(
-          `Question ${questionNumber}: allowedLanguages invalid`,
-        );
+        throw new Error(`Question ${questionNumber}: allowedLanguages invalid`);
       }
 
       // ==================================================
       // STARTER CODE
       // ==================================================
 
-      if (
-        !question.starterCode ||
-        typeof question.starterCode !== "object"
-      ) {
-        throw new Error(
-          `Question ${questionNumber}: starterCode missing`,
-        );
+      if (!question.starterCode || typeof question.starterCode !== "object") {
+        throw new Error(`Question ${questionNumber}: starterCode missing`);
       }
 
       if (
@@ -726,18 +892,14 @@ ${extraInstruction}
         question.redirectUrl !== null &&
         typeof question.redirectUrl !== "string"
       ) {
-        throw new Error(
-          `Question ${questionNumber}: invalid redirectUrl`,
-        );
+        throw new Error(`Question ${questionNumber}: invalid redirectUrl`);
       }
 
       if (
         question.platformImage !== null &&
         typeof question.platformImage !== "string"
       ) {
-        throw new Error(
-          `Question ${questionNumber}: invalid platformImage`,
-        );
+        throw new Error(`Question ${questionNumber}: invalid platformImage`);
       }
 
       return {
@@ -757,11 +919,7 @@ ${extraInstruction}
     ) => {
       let lastError;
 
-      for (
-        let attempt = 1;
-        attempt <= maxRetries + 1;
-        attempt++
-      ) {
+      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
         try {
           const result = await generateOneQuestion(
             questionNumber,
@@ -793,7 +951,7 @@ Every test case MUST contain:
 
 expectedOutput MUST NOT be generated.
 
-referenceSolution.python MUST be present and executable.
+referenceSolution.python MUST be present and executable.Provide Best structure and input code for LinkedList Tree Graph .
 
 Empty input is allowed when valid for the problem.`,
           );
@@ -803,17 +961,13 @@ Empty input is allowed when valid for the problem.`,
           lastError = error;
 
           if (attempt < maxRetries + 1) {
-            console.log(
-              `Question ${questionNumber}: retrying...`,
-            );
+            console.log(`Question ${questionNumber}: retrying...`);
           }
         }
       }
 
       throw new Error(
-        `Question ${questionNumber} failed after ${
-          maxRetries + 1
-        } attempts: ${
+        `Question ${questionNumber} failed after ${maxRetries + 1} attempts: ${
           lastError?.message || "Unknown error"
         }`,
       );
@@ -825,67 +979,65 @@ Empty input is allowed when valid for the problem.`,
 
     const aiStart = Date.now();
 
-    console.log(
-      "Starting 5 parallel AI question generations...",
-    );
+    console.log("Starting 5 parallel AI question generations...");
 
     const results = await Promise.all(
       [
         {
           number: 1,
-          instruction:
-            "Prefer an original/custom coding problem for this question.",
+          instruction: `Prefer an original/custom coding problem for this question. Topic must differ (Topic could be String,Array,LinkedList) You MUST provide:
+- redirectUrl = the actual LeetCode problem URL
+- platformImage = a valid LeetCode image/logo URL if available
+
+DO NOT return null for redirectUrl.
+
+DO NOT invent a URL. `,
         },
         {
           number: 2,
-          instruction:
-            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+          instruction: `"Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage. Topic must differ (Topic could be Hashmap,Array,or best question hard question) - redirectUrl = the actual LeetCode problem URL
+- platformImage = a valid LeetCode image/logo URL if available
+
+DO NOT return null for redirectUrl."`,
         },
         {
           number: 3,
           instruction:
-            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Don't give String topic question",
         },
         {
           number: 4,
           instruction:
-            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage.",
+            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. ",
         },
         {
           number: 5,
-          instruction:
-            "Prefer an original/custom coding problem for this question.",
+          instruction: `"Prefer an original/custom coding problem for this question.
+            - redirectUrl = the actual LeetCode problem URL
+- platformImage = a valid LeetCode image/logo URL if available
+
+DO NOT return null for redirectUrl."`,
         },
       ].map(({ number, instruction }) =>
         generateWithRetry(number, instruction),
       ),
     );
 
-    console.log(
-      `Parallel AI Time: ${Date.now() - aiStart} ms`,
-    );
+    console.log(`Parallel AI Time: ${Date.now() - aiStart} ms`);
 
     // ==================================================
     // COMBINE RESULTS
     // ==================================================
 
-    const difficulties = results.map(
-      (result) => result.question.difficulty,
-    );
+    const difficulties = results.map((result) => result.question.difficulty);
 
-    const uniqueDifficulties = [
-      ...new Set(difficulties),
-    ];
+    const uniqueDifficulties = [...new Set(difficulties)];
 
     const overallDifficulty =
-      uniqueDifficulties.length === 1
-        ? uniqueDifficulties[0]
-        : "mixed";
-
+      uniqueDifficulties.length === 1 ? uniqueDifficulties[0] : "mixed";
+    // const overallTitle =
     const parsed = {
-      questions: results.map(
-        (result) => result.question,
-      ),
+      questions: results.map((result) => result.question),
       difficulty: overallDifficulty,
     };
 
@@ -893,10 +1045,7 @@ Empty input is allowed when valid for the problem.`,
     // COMBINED RESPONSE VALIDATION
     // ==================================================
 
-    if (
-      !parsed ||
-      !Array.isArray(parsed.questions)
-    ) {
+    if (!parsed || !Array.isArray(parsed.questions)) {
       return res.status(500).json({
         success: false,
         msg: "AI response does not contain valid questions.",
@@ -914,24 +1063,11 @@ Empty input is allowed when valid for the problem.`,
     // VALID VALUES
     // ==================================================
 
-    const validDifficulties = [
-      "easy",
-      "medium",
-      "hard",
-      "mixed",
-    ];
+    const validDifficulties = ["easy", "medium", "hard", "mixed"];
 
-    const validQuestionDifficulties = [
-      "easy",
-      "medium",
-      "hard",
-    ];
+    const validQuestionDifficulties = ["easy", "medium", "hard"];
 
-    const validLanguages = [
-      "cpp",
-      "python",
-      "javascript",
-    ];
+    const validLanguages = ["cpp", "python", "javascript"];
 
     // ==================================================
     // OVERALL DIFFICULTY
@@ -950,49 +1086,37 @@ Empty input is allowed when valid for the problem.`,
 
     const questionTitles = new Set();
 
-    for (
-      const [
-        questionIndex,
-        question,
-      ] of parsed.questions.entries()
-    ) {
+    for (const [questionIndex, question] of parsed.questions.entries()) {
       const questionNumber = questionIndex + 1;
 
       // ----------------------------------------------
       // TITLE
       // ----------------------------------------------
 
-      if (
-        typeof question.title !== "string" ||
-        question.title.trim() === ""
-      ) {
+      if (typeof question.title !== "string" || question.title.trim() === "") {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: title is missing.`,
         });
       }
 
-      const normalizedTitle =
-        question.title.trim().toLowerCase();
+      // const normalizedTitle =
+      //   question.title.trim().toLowerCase();
 
-      if (questionTitles.has(normalizedTitle)) {
-        return res.status(500).json({
-          success: false,
-          msg: `Question ${questionNumber}: duplicate question detected.`,
-        });
-      }
+      // if (questionTitles.has(normalizedTitle)) {
+      //   return res.status(500).json({
+      //     success: false,
+      //     msg: `Question ${questionNumber}: duplicate question detected.`,
+      //   });
+      // }
 
-      questionTitles.add(normalizedTitle);
+      // questionTitles.add(normalizedTitle);
 
       // ----------------------------------------------
       // DIFFICULTY
       // ----------------------------------------------
 
-      if (
-        !validQuestionDifficulties.includes(
-          question.difficulty,
-        )
-      ) {
+      if (!validQuestionDifficulties.includes(question.difficulty)) {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: invalid difficulty.`,
@@ -1003,10 +1127,7 @@ Empty input is allowed when valid for the problem.`,
       // TOPIC
       // ----------------------------------------------
 
-      if (
-        typeof question.topic !== "string" ||
-        question.topic.trim() === ""
-      ) {
+      if (typeof question.topic !== "string" || question.topic.trim() === "") {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: topic is missing.`,
@@ -1035,9 +1156,7 @@ Empty input is allowed when valid for the problem.`,
         !Array.isArray(question.constraints) ||
         question.constraints.length === 0 ||
         question.constraints.some(
-          (constraint) =>
-            typeof constraint !== "string" ||
-            !constraint.trim(),
+          (constraint) => typeof constraint !== "string" || !constraint.trim(),
         )
       ) {
         return res.status(422).json({
@@ -1085,20 +1204,12 @@ Empty input is allowed when valid for the problem.`,
         });
       }
 
-      for (
-        const [
-          testCaseIndex,
-          testCase,
-        ] of question.testCases.entries()
-      ) {
-        const testCaseNumber =
-          testCaseIndex + 1;
+      for (const [testCaseIndex, testCase] of question.testCases.entries()) {
+        const testCaseNumber = testCaseIndex + 1;
 
         if (
           typeof testCase.testCaseNumber !== "number" ||
-          !Number.isInteger(
-            testCase.testCaseNumber,
-          )
+          !Number.isInteger(testCase.testCaseNumber)
         ) {
           return res.status(500).json({
             success: false,
@@ -1113,9 +1224,7 @@ Empty input is allowed when valid for the problem.`,
           });
         }
 
-        if (
-          typeof testCase.isHidden !== "boolean"
-        ) {
+        if (typeof testCase.isHidden !== "boolean") {
           return res.status(500).json({
             success: false,
             msg: `Question ${questionNumber}, Test Case ${testCaseNumber}: isHidden must be boolean.`,
@@ -1123,12 +1232,7 @@ Empty input is allowed when valid for the problem.`,
         }
 
         // AI must never generate expectedOutput
-        if (
-          Object.prototype.hasOwnProperty.call(
-            testCase,
-            "expectedOutput",
-          )
-        ) {
+        if (Object.prototype.hasOwnProperty.call(testCase, "expectedOutput")) {
           return res.status(500).json({
             success: false,
             msg: `Question ${questionNumber}, Test Case ${testCaseNumber}: expectedOutput must not be generated by AI.`,
@@ -1140,62 +1244,27 @@ Empty input is allowed when valid for the problem.`,
       // EXAMPLES
       // ----------------------------------------------
 
-      if (
-        !Array.isArray(question.examples) ||
-        question.examples.length < 2
-      ) {
+      if (!Array.isArray(question.examples) || question.examples.length < 2) {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber} must have at least 2 examples.`,
         });
       }
 
-      for (
-        const [
-          exampleIndex,
-          example,
-        ] of question.examples.entries()
-      ) {
-        const exampleNumber =
-          exampleIndex + 1;
+      for (const [exampleIndex, example] of question.examples.entries()) {
+        const exampleNumber = exampleIndex + 1;
 
-        if (
-          typeof example.input !== "string" ||
-          example.input.trim() === ""
-        ) {
+        if (typeof example.input !== "string" || example.input.trim() === "") {
           return res.status(500).json({
             success: false,
             msg: `Question ${questionNumber}, Example ${exampleNumber}: input missing.`,
           });
         }
 
-        if (
-          example.output === undefined ||
-          example.output === null
-        ) {
+        if (example.output === undefined || example.output === null) {
           return res.status(500).json({
             success: false,
             msg: `Question ${questionNumber}, Example ${exampleNumber}: output missing.`,
-          });
-        }
-
-        if (
-          typeof example.output === "string" &&
-          example.output.trim() === ""
-        ) {
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Example ${exampleNumber}: output cannot be empty.`,
-          });
-        }
-
-        if (
-          typeof example.explanation !== "string" ||
-          example.explanation.trim() === ""
-        ) {
-          return res.status(500).json({
-            success: false,
-            msg: `Question ${questionNumber}, Example ${exampleNumber}: explanation missing.`,
           });
         }
       }
@@ -1207,11 +1276,8 @@ Empty input is allowed when valid for the problem.`,
       if (
         !Array.isArray(question.allowedLanguages) ||
         question.allowedLanguages.length !== 3 ||
-        !validLanguages.every(
-          (language) =>
-            question.allowedLanguages.includes(
-              language,
-            ),
+        !validLanguages.every((language) =>
+          question.allowedLanguages.includes(language),
         )
       ) {
         return res.status(500).json({
@@ -1224,10 +1290,7 @@ Empty input is allowed when valid for the problem.`,
       // STARTER CODE
       // ----------------------------------------------
 
-      if (
-        !question.starterCode ||
-        typeof question.starterCode !== "object"
-      ) {
+      if (!question.starterCode || typeof question.starterCode !== "object") {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: starterCode is missing.`,
@@ -1284,10 +1347,7 @@ Empty input is allowed when valid for the problem.`,
       // TIME LIMIT
       // ----------------------------------------------
 
-      if (
-        typeof question.timeLimit !== "number" ||
-        question.timeLimit <= 0
-      ) {
+      if (typeof question.timeLimit !== "number" || question.timeLimit <= 0) {
         return res.status(500).json({
           success: false,
           msg: `Question ${questionNumber}: timeLimit is invalid.`,
@@ -1342,84 +1402,70 @@ Empty input is allowed when valid for the problem.`,
     // ==================================================
 
     for (const question of parsed.questions) {
-  console.log(
-    "REFERENCE SOLUTION:",
-    question.referenceSolution.python
-  );
+      console.log("REFERENCE SOLUTION:", question.referenceSolution.python);
 
-  question.testCases =
-    await generateExpectedOutput(question);
-}
+      question.testCases = await generateExpectedOutput(question);
+    }
 
     // ==================================================
     // PREPARE MONGODB DATA
     // ==================================================
 
-    const quesDetails = parsed.questions.map(
-      (question) => ({
-        title: question.title,
-        difficulty: question.difficulty,
-        topic: question.topic,
+    const quesDetails = parsed.questions.map((question) => ({
+      title: question.title,
+      difficulty: question.difficulty,
+      topic: question.topic,
 
-        redirectUrl:
-          question.redirectUrl || "",
+      redirectUrl: question.redirectUrl || "",
 
-        platformImage:
-          question.platformImage || "",
+      platformImage: question.platformImage || "",
 
-        description:
-          question.description,
+      description: question.description,
 
-        constraints:
-          question.constraints,
+      constraints: question.constraints,
 
-        inputFormat:
-          question.inputFormat,
+      inputFormat: question.inputFormat,
 
-        outputFormat:
-          question.outputFormat,
+      outputFormat: question.outputFormat,
 
-        examples:
-          question.examples,
+      examples: question.examples,
 
-        testCases:
-          question.testCases,
+      testCases: question.testCases,
 
-        allowedLanguages:
-          question.allowedLanguages,
+      allowedLanguages: question.allowedLanguages,
 
-        starterCode: {
-          cpp:
-            question.starterCode.cpp,
+      starterCode: {
+        cpp: question.starterCode.cpp,
 
-          python:
-            question.starterCode.python,
+        python: question.starterCode.python,
 
-          javascript:
-            question.starterCode.javascript,
-        },
+        javascript: question.starterCode.javascript,
+      },
 
-        timeLimit:
-          question.timeLimit,
+      timeLimit: question.timeLimit,
 
-        memoryLimit:
-          question.memoryLimit,
-      }),
-    );
+      memoryLimit: question.memoryLimit,
+    }));
 
     // ==================================================
     // CREATE CODING QUESTION DOCUMENT
     // ==================================================
 
-    const codeQuestion =
-      new CodingDetails({
-        createdBy: userId,
-        prompt: prompt,
-        difficulty: parsed.difficulty,
-        numberOfQuestions: quesNo,
-        startedAt: new Date(),
-        codingDetails: quesDetails,
-      });
+    const startedAt = new Date();
+    const duration = 90 * 60; // 90 minutes
+
+    const endsAt = new Date(startedAt.getTime() + duration * 1000);
+
+    const codeQuestion = new CodingDetails({
+      createdBy: userId,
+      prompt: prompt,
+      difficulty: parsed.difficulty,
+      numberOfQuestions: quesNo,
+      startedAt,
+      duration,
+      endsAt,
+      codingDetails: quesDetails,
+    });
 
     // ==================================================
     // SAVE CODING ROUND
@@ -1427,11 +1473,9 @@ Empty input is allowed when valid for the problem.`,
 
     try {
       await codeQuestion.save();
+      await redisClient.del(`coding-history:${userId}:page:1:limit:20`);
     } catch (mongoError) {
-      console.error(
-        "MONGODB SAVE ERROR:",
-        mongoError.message,
-      );
+      console.error("MONGODB SAVE ERROR:", mongoError.message);
 
       throw mongoError;
     }
@@ -1441,38 +1485,21 @@ Empty input is allowed when valid for the problem.`,
     // ==================================================
 
     try {
-      console.log(
-        "⚡ Caching test cases in Redis...",
-      );
+      console.log("⚡ Caching test cases in Redis...");
 
-      for (
-        let idx = 0;
-        idx < codeQuestion.codingDetails.length;
-        idx++
-      ) {
-        const question =
-          codeQuestion.codingDetails[idx];
+      for (let idx = 0; idx < codeQuestion.codingDetails.length; idx++) {
+        const question = codeQuestion.codingDetails[idx];
 
-        const cacheKey =
-          `coding:testCases:${codeQuestion._id}:${idx}`;
+        const cacheKey = `coding:testCases:${codeQuestion._id}:${idx}`;
 
-        await redisClient.set(
-          cacheKey,
-          JSON.stringify(question.testCases),
-          {
-            EX: 60 * 60,
-          },
-        );
+        await redisClient.set(cacheKey, JSON.stringify(question.testCases), {
+          EX: 60 * 60,
+        });
 
-        console.log(
-          `⚡ Test cases cached: ${cacheKey}`,
-        );
+        console.log(`⚡ Test cases cached: ${cacheKey}`);
       }
     } catch (redisError) {
-      console.error(
-        "❌ REDIS CACHE ERROR:",
-        redisError.message,
-      );
+      console.error("❌ REDIS CACHE ERROR:", redisError.message);
     }
 
     // ==================================================
@@ -1487,11 +1514,7 @@ Empty input is allowed when valid for the problem.`,
     // FINAL LOG
     // ==================================================
 
-    console.log(
-      `Total Coding Generation Time: ${
-        Date.now() - totalStart
-      } ms`,
-    );
+    console.log(`Total Coding Generation Time: ${Date.now() - totalStart} ms`);
 
     // ==================================================
     // SUCCESS RESPONSE
@@ -1500,19 +1523,14 @@ Empty input is allowed when valid for the problem.`,
     return res.status(200).json({
       success: true,
 
-      msg:
-        "Coding round generated successfully.",
+      msg: "Coding round generated successfully.",
 
       data: parsed,
 
-      codingID:
-        codeQuestion._id.toString(),
+      codingID: codeQuestion._id.toString(),
     });
   } catch (error) {
-    console.error(
-      "CODE GENERATOR ERROR:",
-      error.message,
-    );
+    console.error("CODE GENERATOR ERROR:", error.message);
 
     // ==================================================
     // MONGOOSE VALIDATION ERROR
@@ -1527,12 +1545,9 @@ Empty input is allowed when valid for the problem.`,
       return res.status(400).json({
         success: false,
 
-        msg:
-          "Generated coding question contains invalid data.",
+        msg: "Generated coding question contains invalid data.",
 
-        details: Object.keys(
-          error.errors || {},
-        ),
+        details: Object.keys(error.errors || {}),
       });
     }
 
@@ -1541,10 +1556,7 @@ Empty input is allowed when valid for the problem.`,
     // ==================================================
 
     if (error.code === 11000) {
-      console.error(
-        "MONGODB DUPLICATE KEY:",
-        error.keyValue,
-      );
+      console.error("MONGODB DUPLICATE KEY:", error.keyValue);
 
       return res.status(409).json({
         success: false,
@@ -1581,8 +1593,7 @@ const codeQuesDetail = async (req, res) => {
       });
     }
 
-    const codingQuestionDetails =
-      await CodingDetails.findById(id);
+    const codingQuestionDetails = await CodingDetails.findById(id);
 
     if (!codingQuestionDetails) {
       return res.status(404).json({
@@ -1591,31 +1602,38 @@ const codeQuesDetail = async (req, res) => {
       });
     }
 
+    if (codingQuestionDetails?.status === "Completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Already Executed",
+      });
+    }
+
+    if (Date.now() > new Date(codingQuestionDetails?.endsAt).getTime()) {
+      return res.status(400).json({
+        success: false,
+        message: "Time is over",
+      });
+    }
+
     return res.status(200).json({
       success: true,
 
-      message:
-        "Coding question fetched successfully",
+      message: "Coding question fetched successfully",
 
-      details:
-        codingQuestionDetails,
+      details: codingQuestionDetails,
 
       codingId: id,
     });
   } catch (error) {
-    console.error(
-      "CODE QUESTION DETAIL ERROR:",
-      error.message,
-    );
+    console.error("CODE QUESTION DETAIL ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        "Failed to fetch coding question",
+      message: "Failed to fetch coding question",
 
-      error:
-        error.message,
+      error: error.message,
     });
   }
 };

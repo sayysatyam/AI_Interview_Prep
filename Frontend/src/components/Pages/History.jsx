@@ -1,15 +1,24 @@
 import React, { useEffect } from "react";
 import { AIuseStore } from "../../AuthStore/AIStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const History = () => {
   const { getHistory, historyDetails } = AIuseStore();
   const navigate = useNavigate();
+  const [searchParams, setsearchParams] =useSearchParams();
+
+  const page = Number(searchParams.get("page")) || 1;
+const limit = Number(searchParams.get("limit")) || 10;
 
   useEffect(() => {
-    getHistory();
-  }, [getHistory]);
+    getHistory(page,limit);
+  }, [getHistory,page,limit]);
   console.log(historyDetails);
+
+  const history = Array.isArray(historyDetails)
+  ? historyDetails
+  : [];
 
   const getDifficultyBadge = (difficulty = "medium") => {
     const diff = difficulty.toLowerCase();
@@ -36,10 +45,43 @@ const History = () => {
         </div>
 
         {/* Scrollable Container if content exceeds max-height */}
-        <div className="max-h-[75vh] overflow-y-auto space-y-6 pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="">
           
           {/* Empty State Fallback */}
-          {(!historyDetails || historyDetails.length === 0) && (
+          
+
+          <div className="flex items-center justify-end gap-2 mr-5 mb-5">
+
+              <span className="text-sm text-slate-500">
+                Show
+              </span>
+
+              <select
+  value={limit}
+   onChange={(e) => {
+    const newLimit = Number(e.target.value);
+
+    setsearchParams({
+      page: 1,
+      limit: newLimit,
+      mode:"interview"
+    });
+  }}
+  className="px-3.5 py-2 text-sm font-medium bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-slate-700 rounded-xl transition-all duration-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-xs"
+>
+  <option value={5}>5</option>
+  <option value={10}>10</option>
+  <option value={20}>20</option>
+  <option value={50}>50</option>
+</select>
+
+              <span className="text-sm text-slate-500">
+                per page
+              </span>
+
+            </div>
+
+            { history.length === 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3 shadow-sm">
               <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 font-bold text-lg">
                 ?
@@ -52,24 +94,24 @@ const History = () => {
           )}
 
           {/* Interview Cards */}
-          {historyDetails?.map((history, index) => {
+          {history?.map((history, index) => {
             const firstDetail = history.interviewDetails?.[0];
             const difficulty = firstDetail?.difficulty || "medium";
 
             return (
               <div
-                key={index}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden"
+                key={history?._id || index}
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-200 "
               >
                 {/* Header */}
                 <div
                   onClick={() => navigate(`/historyStats/${history?._id}`)}
-                  className="group bg-slate-900 text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4 cursor-pointer relative overflow-hidden"
+                  className="group bg-slate-900 text-white p-6 sm:p-8 flex items-center justify-between gap-4 cursor-pointer relative rounded-2xl "
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-3 flex-wrap">
                       <h1 className="p-2 bg-amber-700 h-8 w-8 flex items-center justify-center rounded font-bold">
-                        {index + 1}
+                        {(page - 1) * limit + index + 1}
                       </h1>
                       <h2 className="text-2xl font-bold tracking-tight text-white group-hover:text-indigo-200 transition-colors">
                         {history.role}
@@ -115,6 +157,39 @@ const History = () => {
           })}
         </div>
       </div>
+       <div>
+              <div className="flex items-center justify-center gap-5 mt-4">
+                <button
+                disabled= {page==1 }
+                onClick={()=>{
+                  setsearchParams({
+        page: page - 1,
+        limit: limit,
+        mode:"interview"
+      });
+                }}
+                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <ChevronLeft className="w-4 h-4" />
+                  PREV
+                </button>
+                <div className="h-9 min-w-9 px-3 flex items-center justify-center rounded-lg bg-slate-900 text-white text-sm font-semibold">
+                      {page}
+                    </div>
+                <button 
+                disabled={history.length < limit}
+                onClick={()=>{
+                 setsearchParams({
+        page: page + 1,
+        limit: limit,
+        mode:"interview"
+      });
+                }}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  NEXT
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
     </div>
   );
 };

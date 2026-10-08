@@ -64,6 +64,10 @@ const InterviewSchema = new mongoose.Schema({
     interviewDetails:[questionsSchema]
 
 },{timestamps:true});
+InterviewSchema.index({
+    createdBy : -1,
+    createdAt:-1
+});
 
 const InterviewDetails = mongoose.model("InterviewDetails",InterviewSchema);
 module.exports = InterviewDetails;

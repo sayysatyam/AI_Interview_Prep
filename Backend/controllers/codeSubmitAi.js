@@ -1,5 +1,7 @@
 const axios = require("axios");
+
 const CodingDetails = require("../models/codeAI");
+
 const { redisClient } = require("../config/redis");
 
 // ============================================================
@@ -7,12 +9,10 @@ const { redisClient } = require("../config/redis");
 // ============================================================
 
 const JUDGE0_URL =
-  process.env.RAPIDAPI_JUDGE0_URL ||
-  "https://judge0-ce.p.rapidapi.com";
+  process.env.RAPIDAPI_JUDGE0_URL || "https://judge0-ce.p.rapidapi.com";
 
 const JUDGE0_HOST =
-  process.env.RAPIDAPI_JUDGE0_HOST ||
-  "judge0-ce.p.rapidapi.com";
+  process.env.RAPIDAPI_JUDGE0_HOST || "judge0-ce.p.rapidapi.com";
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
@@ -51,7 +51,6 @@ const decodeJudge0Output = (value) => {
   try {
     return Buffer.from(value, "base64").toString("utf8");
   } catch (error) {
-    console.error("❌ Base64 decode error:", error.message);
     return String(value);
   }
 };
@@ -65,9 +64,7 @@ const normalizeOutput = (value) => {
     return "";
   }
 
-  return String(value)
-    .replace(/\r\n/g, "\n")
-    .trim();
+  return String(value).replace(/\r\n/g, "\n").trim();
 };
 
 // ============================================================
@@ -116,7 +113,7 @@ const buildTestCaseResponse = ({
     totalTestCases: sortedTestCases.length,
 
     passedTestCases: testCaseResults.filter(
-      (testCase) => testCase.passed === true
+      (testCase) => testCase.passed === true,
     ).length,
 
     executionTime,
@@ -144,7 +141,7 @@ const normalizeTestInput = (value) => {
   input = input.replace(/\\r\\n/g, "\n");
   input = input.replace(/\\n/g, "\n");
 
-  // Convert comma-separated numeric input to whitespace.
+  // Convert comma-separated numeric input to whitespace
   // Example:
   // 1,2,3 -> 1 2 3
   input = input.replace(/,/g, " ");
@@ -159,6 +156,70 @@ const normalizeTestInput = (value) => {
     .join("\n");
 
   return input.trim();
+};
+
+// ============================================================
+// SAVE USER CODE
+// ============================================================
+
+const saveUserCode = async ({ codingId, index, code, language }) => {
+  try {
+    await CodingDetails.updateOne(
+      {
+        _id: codingId,
+        [`codingDetails.${index}`]: { $exists: true },
+      },
+      {
+        $set: {
+          [`codingDetails.${index}.userCode`]: code,
+          [`codingDetails.${index}.language`]: language,
+          [`codingDetails.${index}.status`]: "running",
+        },
+      },
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: error?.message || "Something went wrong",
+    });
+  }
+};
+
+// ============================================================
+// SAVE SUBMISSION RESULT
+// ============================================================
+
+const saveSubmissionResult = async ({
+  codingId,
+  index,
+  code,
+  language,
+  testsPassed,
+  totalTests,
+  executionTime,
+  status,
+}) => {
+  try {
+    await CodingDetails.updateOne(
+      {
+        _id: codingId,
+        [`codingDetails.${index}`]: { $exists: true },
+      },
+      {
+        $set: {
+          [`codingDetails.${index}.userCode`]: code,
+          [`codingDetails.${index}.language`]: language,
+          [`codingDetails.${index}.testsPassed`]: testsPassed,
+          [`codingDetails.${index}.totalTests`]: totalTests,
+          [`codingDetails.${index}.executionTime`]: executionTime,
+          [`codingDetails.${index}.status`]: status,
+        },
+      },
+    );
+  } catch (error) {
+    res.status(500).json({
+      message: error?.message || "Something went wrong",
+    });
+  }
 };
 
 // ============================================================
@@ -204,7 +265,7 @@ const createJudge0Submission = async ({
       {
         headers: getJudge0Headers(),
         timeout: 30000,
-      }
+      },
     );
 
     if (!response.data || !response.data.token) {
@@ -213,11 +274,9 @@ const createJudge0Submission = async ({
 
     return response.data.token;
   } catch (error) {
-    console.error(
-      "❌ Judge0 submission error:",
-      error.response?.data || error.message
-    );
-
+    res.status(500).json({
+      message: error.response?.data || error.message || "Something went wrong",
+    });
     throw error;
   }
 };
@@ -236,7 +295,7 @@ const getJudge0Result = async (token) => {
         {
           headers: getJudge0Headers(),
           timeout: 30000,
-        }
+        },
       );
 
       const result = response.data;
@@ -245,23 +304,21 @@ const getJudge0Result = async (token) => {
       // 2 = Processing
       if (result.status?.id === 1 || result.status?.id === 2) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
+
         continue;
       }
 
       return result;
     } catch (error) {
-      console.error(
-        "❌ Judge0 polling error:",
-        error.response?.data || error.message
-      );
-
+      res.status(500).json({
+        message:
+          error.response?.data || error.message || "Something went wrong",
+      });
       throw error;
     }
   }
 
-  throw new Error(
-    "Judge0 execution timed out while waiting for result."
-  );
+  throw new Error("Judge0 execution timed out while waiting for result.");
 };
 
 // ============================================================
@@ -272,16 +329,7 @@ const submitCode = async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const {
-      codingId,
-      questionIndex,
-      code,
-      language,
-    } = req.body;
-
-    // ========================================================
-    // VALIDATION
-    // ========================================================
+    const { codingId, questionIndex, code, language } = req.body;
 
     if (!codingId) {
       return res.status(400).json({
@@ -330,11 +378,21 @@ const submitCode = async (req, res) => {
     }
 
     // ========================================================
+    // SAVE USER CODE IMMEDIATELY
+    // ========================================================
+
+    await saveUserCode({
+      codingId,
+      index,
+      code,
+      language,
+    });
+
+    // ========================================================
     // REDIS CACHE
     // ========================================================
 
-    const cacheKey =
-      `coding:questionDetails:${codingId}:${index}`;
+    const cacheKey = `coding:questionDetails:${codingId}:${index}`;
 
     let testCases = null;
     let timeLimit = null;
@@ -351,10 +409,13 @@ const submitCode = async (req, res) => {
         memoryLimit = parsedData.memoryLimit;
       }
     } catch (redisError) {
-      console.error(
-        "❌ Redis GET ERROR:",
-        redisError.message
-      );
+      res.status(500).json({
+        message:
+          redisError.response?.data ||
+          redisError.message ||
+          "Something went wrong",
+      });
+      throw redisError;
     }
 
     // ========================================================
@@ -365,6 +426,17 @@ const submitCode = async (req, res) => {
       const session = await CodingDetails.findById(codingId);
 
       if (!session) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: 0,
+          totalTests: 0,
+          executionTime: Date.now() - startTime,
+          status: "wrong_answer",
+        });
+
         return res.status(404).json({
           success: false,
           msg: "Coding session not found.",
@@ -391,7 +463,10 @@ const submitCode = async (req, res) => {
         });
       }
 
-      // Cache for 1 hour
+      // ======================================================
+      // CACHE FOR 1 HOUR
+      // ======================================================
+
       try {
         await redisClient.set(
           cacheKey,
@@ -402,13 +477,15 @@ const submitCode = async (req, res) => {
           }),
           {
             EX: 60 * 60,
-          }
+          },
         );
       } catch (redisError) {
-        console.error(
-          "❌ Redis SET ERROR:",
-          redisError.message
-        );
+        res.status(500).json({
+          message:
+            redisError.response?.data ||
+            redisError.message ||
+            "Something went wrong",
+        });
       }
     }
 
@@ -417,9 +494,7 @@ const submitCode = async (req, res) => {
     // ========================================================
 
     const sortedTestCases = [...testCases].sort(
-      (a, b) =>
-        Number(a.testCaseNumber || 0) -
-        Number(b.testCaseNumber || 0)
+      (a, b) => Number(a.testCaseNumber || 0) - Number(b.testCaseNumber || 0),
     );
 
     // ========================================================
@@ -431,15 +506,11 @@ const submitCode = async (req, res) => {
     for (let i = 0; i < sortedTestCases.length; i++) {
       const testCase = sortedTestCases[i];
 
-      const testCaseNumber =
-        testCase.testCaseNumber || i + 1;
+      const testCaseNumber = testCase.testCaseNumber || i + 1;
 
       const input = normalizeTestInput(testCase.input);
 
-      const expectedOutput =
-        expectedOutputToString(
-          testCase.expectedOutput
-        );
+      const expectedOutput = expectedOutputToString(testCase.expectedOutput);
 
       let token;
 
@@ -456,6 +527,17 @@ const submitCode = async (req, res) => {
           memoryLimit,
         });
       } catch (judgeError) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "runtime_error",
+        });
+
         return res.status(502).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -468,13 +550,11 @@ const submitCode = async (req, res) => {
               "Unable to submit code to Judge0.",
             failedTestCase: testCaseNumber,
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
-      console.log(
-        `Judge0 submission token: ${token}`
-      );
+      console.log(`Judge0 submission token: ${token}`);
 
       // ======================================================
       // POLL RESULT
@@ -485,6 +565,17 @@ const submitCode = async (req, res) => {
       try {
         result = await getJudge0Result(token);
       } catch (judgeError) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "runtime_error",
+        });
+
         return res.status(502).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -497,7 +588,7 @@ const submitCode = async (req, res) => {
               "Unable to get execution result from Judge0.",
             failedTestCase: testCaseNumber,
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -505,14 +596,11 @@ const submitCode = async (req, res) => {
       // DECODE OUTPUT
       // ======================================================
 
-      const actualOutput =
-        decodeJudge0Output(result.stdout);
+      const actualOutput = decodeJudge0Output(result.stdout);
 
-      const stderr =
-        decodeJudge0Output(result.stderr);
+      const stderr = decodeJudge0Output(result.stderr);
 
-      const compileOutput =
-        decodeJudge0Output(result.compile_output);
+      const compileOutput = decodeJudge0Output(result.compile_output);
 
       // ======================================================
       // ADD TESTCASE RESULT
@@ -529,16 +617,14 @@ const submitCode = async (req, res) => {
 
       const statusId = result.status?.id;
 
-      const statusDescription =
-        result.status?.description || "Unknown";
+      const statusDescription = result.status?.description || "Unknown";
 
       // ======================================================
       // NEVER EXPOSE HIDDEN OUTPUT
       // ======================================================
 
       if (testCase.isHidden) {
-        const currentResult =
-          testCaseResults[testCaseResults.length - 1];
+        const currentResult = testCaseResults[testCaseResults.length - 1];
 
         delete currentResult.expectedOutput;
         delete currentResult.actualOutput;
@@ -548,35 +634,32 @@ const submitCode = async (req, res) => {
       // DEBUG
       // ======================================================
 
-      console.log(
-        `========== TEST CASE ${testCaseNumber} ==========`
-      );
+      console.log(`========== TEST CASE ${testCaseNumber} ==========`);
 
-      console.log(
-        "INPUT:",
-        JSON.stringify(input)
-      );
+      console.log("INPUT:", JSON.stringify(input));
 
-      console.log(
-        "EXPECTED:",
-        JSON.stringify(expectedOutput)
-      );
+      console.log("EXPECTED:", JSON.stringify(expectedOutput));
 
-      console.log(
-        "ACTUAL:",
-        JSON.stringify(actualOutput)
-      );
+      console.log("ACTUAL:", JSON.stringify(actualOutput));
 
-      console.log(
-        "STATUS:",
-        statusDescription
-      );
+      console.log("STATUS:", statusDescription);
 
       // ======================================================
       // JUDGE0 INTERNAL ERROR
       // ======================================================
 
       if (statusId === 13) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "runtime_error",
+        });
+
         return res.status(502).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -588,7 +671,7 @@ const submitCode = async (req, res) => {
               result.message ||
               "Judge0 encountered an internal execution error.",
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -597,6 +680,17 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId === 6) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "compilation_error",
+        });
+
         return res.status(200).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -604,11 +698,9 @@ const submitCode = async (req, res) => {
             success: false,
             status: "Compilation Error",
             failedTestCase: testCaseNumber,
-            message:
-              compileOutput ||
-              "Compilation error.",
+            message: compileOutput || "Compilation error.",
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -617,6 +709,17 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId === 5) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "time_limit",
+        });
+
         return res.status(200).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -626,7 +729,7 @@ const submitCode = async (req, res) => {
             failedTestCase: testCaseNumber,
             message: "Time limit exceeded.",
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -641,6 +744,17 @@ const submitCode = async (req, res) => {
         statusId === 10 ||
         statusId === 11
       ) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "runtime_error",
+        });
+
         return res.status(200).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -648,10 +762,9 @@ const submitCode = async (req, res) => {
             success: false,
             status: "Runtime Error",
             failedTestCase: testCaseNumber,
-            message:
-              stderr || statusDescription,
+            message: stderr || statusDescription,
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -660,6 +773,17 @@ const submitCode = async (req, res) => {
       // ======================================================
 
       if (statusId !== 3) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "runtime_error",
+        });
+
         return res.status(200).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -668,12 +792,9 @@ const submitCode = async (req, res) => {
             status: statusDescription,
             failedTestCase: testCaseNumber,
             message:
-              result.message ||
-              stderr ||
-              compileOutput ||
-              statusDescription,
+              result.message || stderr || compileOutput || statusDescription,
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -681,27 +802,30 @@ const submitCode = async (req, res) => {
       // COMPARE OUTPUT
       // ======================================================
 
-      const normalizedActual =
-        normalizeOutput(actualOutput);
+      const normalizedActual = normalizeOutput(actualOutput);
 
-      const normalizedExpected =
-        normalizeOutput(expectedOutput);
+      const normalizedExpected = normalizeOutput(expectedOutput);
 
-      console.log(
-        "NORMALIZED ACTUAL:",
-        JSON.stringify(normalizedActual)
-      );
+      console.log("NORMALIZED ACTUAL:", JSON.stringify(normalizedActual));
 
-      console.log(
-        "NORMALIZED EXPECTED:",
-        JSON.stringify(normalizedExpected)
-      );
+      console.log("NORMALIZED EXPECTED:", JSON.stringify(normalizedExpected));
 
       // ======================================================
       // WRONG ANSWER
       // ======================================================
 
       if (normalizedActual !== normalizedExpected) {
+        await saveSubmissionResult({
+          codingId,
+          index,
+          code,
+          language,
+          testsPassed: testCaseResults.filter((tc) => tc.passed).length,
+          totalTests: sortedTestCases.length,
+          executionTime: Date.now() - startTime,
+          status: "wrong_answer",
+        });
+
         return res.status(200).json(
           buildTestCaseResponse({
             testCaseResults,
@@ -709,10 +833,9 @@ const submitCode = async (req, res) => {
             success: false,
             status: "Wrong Answer",
             failedTestCase: testCaseNumber,
-            message:
-              "Your output does not match the expected output.",
+            message: "Your output does not match the expected output.",
             executionTime: Date.now() - startTime,
-          })
+          }),
         );
       }
 
@@ -720,50 +843,67 @@ const submitCode = async (req, res) => {
       // CURRENT TESTCASE PASSED
       // ======================================================
 
-      testCaseResults[
-        testCaseResults.length - 1
-      ].passed = true;
+      testCaseResults[testCaseResults.length - 1].passed = true;
     }
 
     // ========================================================
     // ALL TEST CASES PASSED
     // ========================================================
 
-    return res.status(200).json({
-      success: true,
-      status: "Accepted",
-      message: "All test cases passed.",
+    const totalTests = sortedTestCases.length;
 
-      totalTestCases:
-        sortedTestCases.length,
+    const passedTests = testCaseResults.filter(
+      (tc) => tc.passed === true,
+    ).length;
 
-      passedTestCases:
-        sortedTestCases.length,
+    const executionTime = Date.now() - startTime;
 
-      executionTime:
-        Date.now() - startTime,
+    // ========================================================
+    // SAVE ACCEPTED RESULT
+    // ========================================================
 
-      testCases: testCaseResults,
+    await saveSubmissionResult({
+      codingId,
+      index,
+      code,
+      language,
+      testsPassed: passedTests,
+      totalTests,
+      executionTime,
+      status: "accepted",
     });
 
-  } catch (error) {
-    console.error(
-      "❌ SUBMIT CODE ERROR:",
-      error
-    );
+    // ========================================================
+    // RESPONSE
+    // ========================================================
 
+    return res.status(200).json({
+      success: true,
+
+      status: "Accepted",
+
+      message: "All test cases passed.",
+
+      totalTestCases: totalTests,
+
+      passedTestCases: passedTests,
+
+      executionTime,
+
+      testCases: testCaseResults,
+      userCode : code
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.response?.data || error.message || "Something went wrong",
+    });
     return res.status(500).json({
       success: false,
       status: "Server Error",
-      msg:
-        "Something went wrong while executing your code.",
+      msg: "Something went wrong while executing your code.",
     });
   }
 };
-
-// ============================================================
-// EXPORT
-// ============================================================
 
 module.exports = {
   submitCode,

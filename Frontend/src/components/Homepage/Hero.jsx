@@ -209,7 +209,7 @@ const interviewModes = [
 
         <motion.button
          onClick={()=>{
-          navigate("/history")
+          navigate("/historymain")
          }}
           whileTap={{ scale: 0.95, y: 20 }}
           whileHover={{ scale: 1.04 }}

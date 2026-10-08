@@ -10,8 +10,8 @@ const Footer = () => {
       { label: "Start Interview", path: "/startInterview" },
       { label: "Interview Modes", path: "/#interview-mode" },
       { label: "AI Capabilities", path: "/#features",  },
-      { label: "View History", path: "/history" },
-      { label: "Pricing", path: "/pricing" },
+      { label: "Interview History", path: "/history" },
+      { label: "Coding History", path: "/codeHistory" },
     ],
     Resources: [
       { label: "How it works", path: "/#how-it-works"},

@@ -142,12 +142,12 @@ export const AIuseStore = create((set) => ({
       });
     }
   },
-  getHistory: async () => {
+  getHistory: async (page, limit) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await axios.get(`${API_URL}/getHistory`);
-      set({ historyDetails: res.data, isLoading: false, error: null });
-      return res.data;
+      const res = await axios.get(`${API_URL}/getHistory?page=${page}&limit=${limit}`);
+      set({ historyDetails: res?.data?.result, isLoading: false, error: null });
+      return res?.data?.result;
     } catch (error) {
       set({
         isLoading: false,
