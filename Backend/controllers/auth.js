@@ -7,6 +7,7 @@ const { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendRes
 require("dotenv").config();
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const signup = async(req,res)=>{
     const {name,email,password} = req.body;
 
@@ -21,25 +22,30 @@ const signup = async(req,res)=>{
         
             const hashPassword = await bcryptjs.hash(password,10);
             const otp = generateVerificationCode();
+            if(otp.length != 6){
+                otp = generateVerificationCode();
+            }
 
             const newUser = new userDetails({
                 email,
                 password:hashPassword,
                 name,
                 verificationToken:otp,
-                verificationTokenExpireAt:Date.now()+1*60*60*1000,
+                verificationTokenExpireAt:Date.now()+OTP_EXPIRY_MS,
             });
             await newUser.save();
             generateTokenAndSetCookies(res,newUser._id);
             await sendVerificationEmail(newUser.email,newUser.verificationToken);
-            res.status(200).send({
-                success : true,
-                msg:"User Created Successfully",
-                user:{
-                    ...newUser._doc,
-                    password:null
-                },
-            });
+            return res.status(201).json({
+  success: true,
+  msg: "User Created Successfully",
+  user: {
+    _id: newUser._id,
+    name: newUser.name,
+    email: newUser.email,
+    isVerified: newUser.isVerified,
+  },
+});
 
     } catch (error) {
         return res.status(500).send({ success: false, msg: "ERROR" });
@@ -88,7 +94,7 @@ const resendVerificationCode = async (req, res) => {
 
     reverifyCodeUser.verificationToken = verificationCode;
     reverifyCodeUser.verificationTokenExpireAt =
-      Date.now() + 24 * 60 * 60 * 1000;
+      Date.now() + OTP_EXPIRY_MS;
     reverifyCodeUser.lastVerificationEmailSentAt = Date.now();
 
     await reverifyCodeUser.save();
@@ -210,13 +216,11 @@ const forgotPassword = async(req,res)=>{
             validateUser.email,
             `${process.env.CLIENT_URL}/reset-password/${resetToken}`,
         );
-        res
-      .status(200)
-      .json({
-        success: true,
-        message: "Password reset link sent to your email",
-        user: { ...validateUser },
-      });
+       return res.status(200).json({
+  success: true,
+  message:
+    "If an account exists for this email, a password reset link will be sent.",
+});
     } catch (error) {
         console.log("Error in forgotPassword ", error);
     res.status(400).json({ success: false, message: error.message });

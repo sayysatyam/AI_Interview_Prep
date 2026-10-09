@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 const InterviewStartPage = () => {
   const navigate = useNavigate();
-  const { getResumeData, ResumeData, isLoading, error,resetResumeData,generateQuestion,isQuesLoading} = AIuseStore();
+  const { getResumeData, ResumeData, isLoading, error,resetResumeData,generateQuestion,isQuesLoading,isExistingInterviewSession} = AIuseStore();
   const [File, setFile] = useState("");
   const [JobRole, setJobRole] = useState("");
   const [ExperienceYear, setExperienceYear] = useState("0 – 1 year (Fresher)");
@@ -24,7 +24,7 @@ const InterviewStartPage = () => {
   const [Difficulty, setDifficulty] = useState("Mixed");
     const [NumberofQues, setNumberofQues] = useState(5);
     const [localErrorForQues, setlocalErrorForQues] = useState(null);
-
+const [coolDown, setcoolDown] = useState(null);
     useEffect(()=>{
       console.log("Resume : ",ResumeData);
     },[ResumeData]);
@@ -179,10 +179,26 @@ const InterviewStartPage = () => {
     Difficulty.toLowerCase(),
     Number(NumberofQues)
   );
-
+  console.log(isExistingInterviewSession);
   if (result) {
-    console.log("Questions:", result);
-    navigate("/interview");
+    if(isExistingInterviewSession){
+      setcoolDown(3);
+          let count = 3;
+          const interval = setInterval(()=>{
+              count--;
+              if(count===0){
+                clearInterval(interval);
+                setcoolDown(null);
+                  navigate("/interview");
+                  return;
+              }
+              setcoolDown(count);
+          },1000)
+          return;
+    } else{
+       navigate("/interview");
+    }
+   
   }
 };
 
@@ -199,8 +215,47 @@ const InterviewStartPage = () => {
   resetResumeData();
   window.location.reload(); 
 };
+
+    // if((coolDown!=null && coolDown!=0)){
+    //   return(
+    //     <div className="fixed inset-0 z-4637 flex items-center justify-center  bg-black/70">
+    //             <div className="text-center">
+    //   <p className="text-white text-lg mb-3">
+    //   Previous Interview is active
+    //   </p>
+
+    //   <div className="text-8xl font-bold text-amber-400 animate-pulse">
+    //     {coolDown}
+    //   </div>
+
+    //   <p className="text-zinc-400 mt-3">
+    //     Resuming your existing Interview...
+    //   </p>
+    // </div>
+    //     </div>
+    //   )
+    // }
   return (
-    <div className="bg-[#F0EBE3] w-full flex items-center justify-center px-4 sm:px-6 py-10 min-h-screen">
+    
+    <div className="bg-[#F0EBE3] max-w-8xl mx-auto flex items-center justify-center px-4 sm:px-6 py-10 min-h-screen relative">
+
+      {(coolDown!=null && coolDown !=0 ) && (
+        <div className="absolute inset-0 z-4637 flex items-center justify-center  bg-black/70">
+                <div className="text-center">
+      <p className="text-white text-lg mb-3">
+      Previous Interview is active
+      </p>
+
+      <div className="text-8xl font-bold text-amber-400 animate-pulse">
+        {coolDown}
+      </div>
+
+      <p className="text-zinc-400 mt-3">
+        Resuming your existing Interview...
+      </p>
+    </div>
+        </div>
+      )}
 
       {error?.includes("Minimum 50 credits") && (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50"></div>
@@ -222,7 +277,7 @@ const InterviewStartPage = () => {
           </p>
 
           <button
-            onClick={() => navigate("/buy-credits")}
+            onClick={() => navigate("/payment-pricing")}
             className="bg-black w-full text-white px-6 py-2 rounded-2xl cursor-pointer mt-3"
           >
             Buy More
@@ -708,6 +763,7 @@ const InterviewStartPage = () => {
                 >
                  {isQuesLoading ? <Loader className="h-6 w-6 animate-spin mx-auto "/> : "All Set For Interview"}
                 </button>
+
               </>
             ) : (
               ""
@@ -723,6 +779,8 @@ const InterviewStartPage = () => {
 
         </div>
       </motion.div>
+
+     
     </div>
   );
 };

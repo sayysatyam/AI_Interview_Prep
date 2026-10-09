@@ -12,9 +12,9 @@ const questionsSchema = new mongoose.Schema({
 
   timeLimit: { type: Number, default: 60 },
 
-  answer: String,
   feedback: String,
   userAnswer : String,
+  category : String,
 
 
   evaluation: {
@@ -61,7 +61,26 @@ const InterviewSchema = new mongoose.Schema({
     average : {
         type:Number
     },
-    interviewDetails:[questionsSchema]
+    interviewDetails:[questionsSchema],
+
+    startedAt: {
+  type: Date,
+  default: Date.now
+},
+
+duration: {
+  type: Number,
+  required: true 
+},
+
+endsAt: {
+  type: Date,
+  required: true
+},
+
+completedAt: {
+  type: Date
+},
 
 },{timestamps:true});
 InterviewSchema.index({

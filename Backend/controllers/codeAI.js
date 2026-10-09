@@ -985,7 +985,13 @@ Empty input is allowed when valid for the problem.`,
       [
         {
           number: 1,
-          instruction: `Prefer an original/custom coding problem for this question. Topic must differ (Topic could be String,Array,LinkedList) You MUST provide:
+          instruction: `
+          TOPIC: Arrays / Strings.
+
+      Generate an Arrays or Strings coding problem.
+      Do NOT generate Linked List, Tree, or Graph problems.
+
+      Prefer an original/custom coding problem for this question.  
 - redirectUrl = the actual LeetCode problem URL
 - platformImage = a valid LeetCode image/logo URL if available
 
@@ -995,7 +1001,9 @@ DO NOT invent a URL. `,
         },
         {
           number: 2,
-          instruction: `"Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage. Topic must differ (Topic could be Hashmap,Array,or best question hard question) - redirectUrl = the actual LeetCode problem URL
+          instruction: `"
+          Preffered TOPIC: Hashing / Two Pointers / Sliding Window.
+          Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Otherwise generate an original/custom problem and use null for redirectUrl and platformImage. redirectUrl = the actual LeetCode problem URL
 - platformImage = a valid LeetCode image/logo URL if available
 
 DO NOT return null for redirectUrl."`,
@@ -1003,12 +1011,12 @@ DO NOT return null for redirectUrl."`,
         {
           number: 3,
           instruction:
-            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Don't give String topic question",
+            "    Preffered TOPIC: Linked List. Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. Don't give String topic question",
         },
         {
           number: 4,
           instruction:
-            "Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. ",
+            " PREFERRABLE  TOPIC: Trees / Binary Trees / BST. Prefer a platform-associated coding problem only if the platform association and URL can be confidently provided. ",
         },
         {
           number: 5,

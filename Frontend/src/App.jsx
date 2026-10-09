@@ -28,6 +28,7 @@ import CodeHistory from "./components/Pages/CodingPages/codeHistory";
 import MainHistoryPage from "./components/Pages/MainHistoryPage";
 import CodingRoundAnalysis from "./components/Pages/CodingPages/CodingRoundAnalysis";
 import CodeHistoryAnalysis from "./components/Pages/CodingPages/CodeHistoryAnalysis";
+import Payment from "./components/PaymentPage/Payment";
 
 const ProtectedRoutes = ({ children }) => {
   const { isAuthenticated, user } = userAuthStore();
@@ -165,6 +166,7 @@ const App = () => {
 
           <Route path="/code/:id/analysis" element={<CodingRoundAnalysis />} />
           <Route path = "/code/:id/history" element={<CodeHistoryAnalysis/>}/>
+          <Route path="/payment-pricing" element={<Payment/>}/>
         </Routes>
         <div>
           <Footer />

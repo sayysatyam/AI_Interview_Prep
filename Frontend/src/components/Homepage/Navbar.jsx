@@ -124,7 +124,7 @@ useEffect(() => {
                 Need More Credit to continue?
               </p>
               <button
-                onClick={() => navigate("/pricing")}
+                onClick={() => navigate("/payment-pricing")}
                 className="bg-black text-white px-4 py-2 rounded-lg cursor-pointer w-full text-sm"
               >
                 Buy More

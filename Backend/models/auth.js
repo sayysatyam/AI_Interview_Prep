@@ -43,6 +43,15 @@ avatar: {
     resetPasswordExpireAt: Date,
     verificationToken: String,
     verificationTokenExpireAt: Date,
+     verificationAttempts: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    verificationLockedUntil: {
+      type: Date,
+      default: null,
+    },
     lastVerificationEmailSentAt: {
   type: Date,
 },

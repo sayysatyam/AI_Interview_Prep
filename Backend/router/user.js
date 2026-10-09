@@ -7,17 +7,20 @@ const { codeQuesGenerator, codeQuesDetail } = require('../controllers/codeAI');
 const { codeSubmitAI, submitCode } = require('../controllers/codeSubmitAi');
 const { getCodingHistory } = require('../controllers/getCodeHis');
 const { codeANALYSISAI, codeHistory } = require('../controllers/codeAnalysisAI');
-
+const {authLimiter,
+  verifyOtpLimiter,
+  resendOtpLimiter,
+  passwordResetLimiter} =  require("../MiddleWare/authRateLimit");
 const route = express.Router();
 
-route.post("/signup",signup);
-route.post("/verify-email",verifyEmail);
-route.post("/resendotp",verifyToken,resendVerificationCode);
-route.post("/login",login);
+route.post("/signup",authLimiter,signup);
+route.post("/verify-email",verifyOtpLimiter,verifyEmail);
+route.post("/resendotp",  resendOtpLimiter,verifyToken,resendVerificationCode);
+route.post("/login",authLimiter,login);
 route.post("/logout",logout);
-route.post("/forgot-password",forgotPassword);
-route.get("/reset-password/:token",verifyResetToken);
-route.post("/reset-password/:token",resetPassword);
+route.post("/forgot-password",passwordResetLimiter,forgotPassword);
+route.get("/reset-password/:token",passwordResetLimiter,verifyResetToken);
+route.post("/reset-password/:token",passwordResetLimiter,resetPassword);
 route.get("/check-auth",verifyToken,checkAuth);
 route.post("/google", googleAuth);
 route.post("/aiResumeAnalyzer" ,verifyToken, upload.single("resume"),handleResumeUpload);

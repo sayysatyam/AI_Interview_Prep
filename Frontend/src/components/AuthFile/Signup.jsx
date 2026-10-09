@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Loader, Lock, LogIn, LogInIcon, Mail, Signal, Sparkle, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { FaRobot } from "react-icons/fa6";
+import { FaArrowLeft, FaRobot } from "react-icons/fa6";
 import { GoogleLogin } from "@react-oauth/google";
 import { userAuthStore } from '../../AuthStore/user';
 import toast from 'react-hot-toast';
@@ -46,6 +46,12 @@ useEffect(() => {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className='w-full max-w-md bg-white rounded-2xl border-2 border-gray-200 shadow-2xl p-5 sm:p-6 max-h-[95vh] overflow-y-auto '
       >
+         <button
+                          onClick={() => navigate(-1)}
+                          className="flex items-center gap-2 rounded-full border border-[#D9D0C3] bg-white/70 p-2.5 text-sm font-medium transition hover:bg-white mb-2 cursor-pointer"
+                        >
+                          <FaArrowLeft size={17} />
+                        </button>
         <div className="flex items-center justify-center gap-2 mb-3 w-full">
           <div className="p-2 bg-green-800/30 rounded-full flex items-center justify-center text-white">
             <FaRobot size={24} />

@@ -109,7 +109,7 @@ const WELCOME_EMAIL_TEMPLATE = `
         If you have any questions, just reply to this email — we're here to help!
       </p>
       <div class="footer">
-        <p>Cheers,<br /><strong>Satyam</strong><br />Team Our App</p>
+        <p>Cheers,<br /><strong>{name}</strong><br />Team InterviewPrep AI</p>
       </div>
     </div>
   </body>

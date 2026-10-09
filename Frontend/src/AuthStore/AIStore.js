@@ -19,6 +19,7 @@ export const AIuseStore = create((set) => ({
   finalResult: null,
   historyDetails: [],
   getTitleHistory : [],
+  isExistingInterviewSession:false,
   getResumeData: async (file) => {
     set({ isLoading: true, error: null });
     try {
@@ -75,6 +76,7 @@ export const AIuseStore = create((set) => ({
         error: null,
         success: true,
         interviewId: res.data?.interviewId,
+        isExistingInterviewSession : res?.data?.isExistingInterviewSession
       });
 
       return data;

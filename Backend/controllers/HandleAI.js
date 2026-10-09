@@ -135,6 +135,27 @@ const generateQuestion = async (req, res) => {
       });
     }
 
+    const existingInterviewSession = await InterviewDetails.findOne({createdBy : req.userId}).sort({createdAt : -1});
+
+    const details = existingInterviewSession?.interviewDetails?.map((item)=>({
+          question : item.question,
+          difficulty : item.difficulty,
+          timeLimit : item.timeLimit,
+          category : item.category
+    }));
+    if(existingInterviewSession){
+      const isExpired = new Date() >=new Date(existingInterviewSession?.endsAt);
+      const isCompleted = existingInterviewSession.status === "Completed";
+
+      if(!isExpired && !isCompleted){
+        return res.status(200).json({
+          success: false,
+          interviewData: details,
+            interviewId: existingInterviewSession._id,
+          isExistingInterviewSession: true,
+        });
+      }
+    };
     if (user.credits < 50) {
       return res.status(400).json({
         success: false,
@@ -247,9 +268,14 @@ Each object MUST follow this exact structure:
     }
     user.credits -= 50;
     await user.save();
-
+        const startedAt  = new Date();
+        const duration = 60*60;
+        const endsAt = new Date(startedAt.getTime() + duration * 1000);
     const userInterviewDetails = new InterviewDetails({
       createdBy: user._id,
+      startedAt,
+      duration,
+      endsAt,
       role,
       experience,
       mode,
@@ -258,12 +284,12 @@ Each object MUST follow this exact structure:
         question: q.question,
         difficulty: q.difficulty,
         timeLimit: q.timeLimit,
-        answer: q.answer,
+         category: q. category,
       })),
     });
     await redisClient.del(`interview-history:${req.userId}:page:1:limit:20`);
     await userInterviewDetails.save();
-
+       
     res.json({
       success: true,
       interviewData: parsed,
