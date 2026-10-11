@@ -14,7 +14,6 @@ const limit = Number(searchParams.get("limit")) || 10;
   useEffect(() => {
     getHistory(page,limit);
   }, [getHistory,page,limit]);
-  console.log(historyDetails);
 
   const history = Array.isArray(historyDetails)
   ? historyDetails

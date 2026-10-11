@@ -26,7 +26,6 @@ const mode = "code";
   }, [getCodingHistory, page, limit]);
 
   const history = Array.isArray(codeHistory) ? codeHistory : [];
-  console.log(history);
 
   const getDifficultyStyle = (difficulty) => {
     switch (difficulty?.toLowerCase()) {

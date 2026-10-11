@@ -61,12 +61,6 @@ const CodeHistoryAnalysis = () => {
   const [openQuestion, setOpenQuestion] = useState(null);
 
 
-  useEffect(() => {
-
-    console.log("Analysis Report:", analysisReport);
-
-  }, [analysisReport]);
-
   const analysis = analysisReport?.analysis;
 
   const questionDetails = analysisReport?.questionDetails || [];

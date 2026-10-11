@@ -80,8 +80,7 @@ const [Error, setError] = useState(null);
   });
 
   razorpay.open();
-  
-  console.log(order);
+
       }
       } catch (error) {
         console.log(error);

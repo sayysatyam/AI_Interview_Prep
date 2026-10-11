@@ -30,6 +30,13 @@ const verifyPayment = async (req, res) => {
       razorpayOrderId: razorpay_order_id,
     });
         const user = await userDetails.findById(req.userId);
+
+        if(!user){
+          return res.status(404).json({
+        success: false,
+        message: "User  not found",
+      });
+        }
     if (!payment) {
       return res.status(404).json({
         success: false,

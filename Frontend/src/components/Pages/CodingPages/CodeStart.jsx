@@ -15,10 +15,9 @@ const promptRef = useRef(null);
   const {
     codingQuestionGenerator,
     isLoadingCodingQuestion,
-    codeQuestionData,
-    codingID,
+ 
     error,
-    isExistingSession
+
   } = codeAIStore();
 
   const { user, isAuthenticated } = userAuthStore();
@@ -135,12 +134,6 @@ useEffect(() => {
   generateAfterLogin();
 
 }, [isAuthenticated, user, codingQuestionGenerator, navigate]);
-
-  useEffect(() => {
-    console.log(codeQuestionData);
-    console.log("codingId : ",codingID);
-  }, [codeQuestionData,codingID]);
-
 
   const features = [
     {

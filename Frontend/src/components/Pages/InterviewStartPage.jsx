@@ -25,9 +25,6 @@ const InterviewStartPage = () => {
     const [NumberofQues, setNumberofQues] = useState(5);
     const [localErrorForQues, setlocalErrorForQues] = useState(null);
 const [coolDown, setcoolDown] = useState(null);
-    useEffect(()=>{
-      console.log("Resume : ",ResumeData);
-    },[ResumeData]);
 
   useEffect(() => {
     if (!JobRole && ResumeData?.experience_fit) {
@@ -179,7 +176,7 @@ const [coolDown, setcoolDown] = useState(null);
     Difficulty.toLowerCase(),
     Number(NumberofQues)
   );
-  console.log(isExistingInterviewSession);
+
   if (result) {
     if(isExistingInterviewSession){
       setcoolDown(3);

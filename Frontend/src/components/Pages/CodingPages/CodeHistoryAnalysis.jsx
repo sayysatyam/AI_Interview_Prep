@@ -40,9 +40,6 @@ const CodeHistoryAnalysis = () => {
     codeHistoryAnalysis(id);
   }, [codeHistoryAnalysis, id]);
 
-  useEffect(() => {
-    console.log("Analysis Report:", analysisReport);
-  }, [analysisReport]);
 
   const analysis = analysisReport?.analysis;
   const questionDetails = analysisReport?.questionDetails || [];

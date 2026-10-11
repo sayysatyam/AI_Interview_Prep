@@ -149,24 +149,37 @@ const App = () => {
           <Route
             path="/startInterview"
             element={
-              <ProtectedRoutes>
                 <InterviewStartPage />
-              </ProtectedRoutes>
+      
             }
           />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/interview" element={<Interview />} />
-          <Route path="/evaluation" element={<AfterSubmitInterview />} />
+          <Route path="/interview" element={<ProtectedRoutes>
+            <Interview />
+          </ProtectedRoutes>} />
+          <Route path="/evaluation" element={<ProtectedRoutes>
+            <AfterSubmitInterview />
+          </ProtectedRoutes>} />
           <Route path="/code" element={<CodeStart />} />
-          <Route path="/startCode/:id" element={<StartCodingInterview />} />
+          <Route path="/startCode/:id" element={<ProtectedRoutes>
+            <StartCodingInterview />
+          </ProtectedRoutes>} />
           <Route path="/codeHistory" element={<ProtectedRoutes>
             <CodeHistory/>
           </ProtectedRoutes>}/>
-          <Route path="/historymain" element={<MainHistoryPage/>}/>
+          <Route path="/historymain" element={<ProtectedRoutes>
+            <MainHistoryPage/>
+          </ProtectedRoutes>}/>
 
-          <Route path="/code/:id/analysis" element={<CodingRoundAnalysis />} />
-          <Route path = "/code/:id/history" element={<CodeHistoryAnalysis/>}/>
-          <Route path="/payment-pricing" element={<Payment/>}/>
+          <Route path="/code/:id/analysis" element={<ProtectedRoutes>
+            <CodingRoundAnalysis />
+          </ProtectedRoutes>} />
+          <Route path = "/code/:id/history" element={<ProtectedRoutes>
+            <CodeHistoryAnalysis/>
+          </ProtectedRoutes>}/>
+          <Route path="/payment-pricing" element={<ProtectedRoutes>
+            <Payment/>
+          </ProtectedRoutes>}/>
         </Routes>
         <div>
           <Footer />

@@ -12,7 +12,6 @@ const HistoryStat = () => {
       getHisByTitle(hisId);
     }
   }, [hisId, getHisByTitle]);
-    console.log(getTitleHistory);
   const history = getTitleHistory?.interviewDetails || [];
 
   // Calculate session metrics safely

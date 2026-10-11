@@ -26,9 +26,6 @@ const Interview = () => {
     calculate,
   } = AIuseStore();
 
-  useEffect(() => {
-    console.log("Question :", questionSet);
-  }, [questionSet]);
 
   useEffect(() => {
     if (!questionSet || questionSet.length === 0) {
@@ -39,11 +36,6 @@ const Interview = () => {
   useEffect(() => {
     console.log("error :", error);
   }, [error]);
-
-  useEffect(() => {
-    console.log("Id :", interviewId);
-  }, [interviewId]);
-
   const [currentQ, setCurrentQ] = useState(0);
 
   // No localStorage/sessionStorage
@@ -95,8 +87,6 @@ const Interview = () => {
 
         if (currentQ === questionSet?.length - 1) {
           const finalResult = await calculate(interviewId);
-
-          console.log("Final Result :", finalResult);
 
           setisSubmitting(false);
 

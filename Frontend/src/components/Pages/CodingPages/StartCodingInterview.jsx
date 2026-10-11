@@ -74,10 +74,6 @@ const StartCodingInterview = () => {
     }
   });
 
-useEffect(()=>{
-    console.log("Here : ",codeQuestionData); //
-},[codeQuestionData]);
-
   const timeOverHandled = useRef(false);
 
   const [code, setCode] = useState("");
@@ -361,7 +357,6 @@ useEffect(() => {
       setIsRunning(false);
     setisSubmitting(false)
     setisFinishing(false);
-    console.error("Time over analysis failed:", error);
     setshowTimeOver(true);
   }
 };
