@@ -10,7 +10,15 @@ const { connectRedis } = require("./config/redis");
 require("dotenv").config();
 const port = process.env.PORT || 4000;
 app.set("trust proxy", 1);
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      if (req.originalUrl.split("?")[0] === "/auth/payment/webhook") {
+        req.rawBody = Buffer.from(buf);
+      }
+    },
+  })
+);
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 

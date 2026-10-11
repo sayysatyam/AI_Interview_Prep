@@ -26,66 +26,67 @@ const [Error, setError] = useState(null);
     (plan) => plan.label === selectedPlan
   );
 
-  const handlePayment = async()=>{
-     if (!activePlan || isLoading) return;
+ const handlePayment = async () => {
+  if (!activePlan || isLoading) return;
 
-       const loaded = await loadRazorpay();
+  try {
+    const loaded = await loadRazorpay();
 
-  if (!loaded) {
-    alert("Unable to load Razorpay Checkout.");
-    return;
-  }
-      try {
-        const order = await createPayment(activePlan.code);
-        setError(error);
-        if(!order) return;
-        if(order){
-         const options = {
-    key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+    if (!loaded) {
+      alert("Unable to load Razorpay Checkout.");
+      return;
+    }
 
-    amount: order.amountPaise,
-    currency: order.currency,
-    name: "InterviewPrep",
-    description: `${order.planName} credit pack`,
-    order_id: order.razorpayOrderId,
+    const order = await createPayment(activePlan.code);
 
-    handler: async(response) => {
-     const result = await verifyPayment({
-    razorpay_payment_id: response.razorpay_payment_id,
-    razorpay_order_id: response.razorpay_order_id,
-    razorpay_signature: response.razorpay_signature,
-    mongoPaymentId: order._id,
-  });
+    if (!order) return;
 
-  if (result?.success) {
-    alert("Payment verified successfully!");
-  } else {
-    alert(
-      "Payment verification is pending. Please check your payment status."
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: order.amountPaise,
+      currency: order.currency,
+      name: "InterviewPrep",
+      description: `${order.planName} credit pack`,
+      order_id: order.razorpayOrderId,
+
+      handler: async (response) => {
+        console.log(
+          "Checkout payment successful:",
+          response.razorpay_payment_id
+        );
+
+        alert(
+          "Payment submitted successfully! Your credits will be updated shortly."
+        );
+
+        // Webhook will process the payment.
+        // Do not call verifyPayment here.
+      },
+
+      theme: {
+        color: "#4F46E5",
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+
+    razorpay.on("payment.failed", (response) => {
+      console.error("Payment failed:", response.error);
+
+      alert(
+        response.error?.description || "Payment failed."
+      );
+    });
+
+    razorpay.open();
+  } catch (error) {
+    console.error("Payment error:", error);
+
+    setError(
+      error?.message || "Unable to initiate payment."
     );
   }
-    },
-
-    theme: {
-      color: "#4F46E5",
-    },
- };
-
-  const razorpay = new window.Razorpay(options);
-  razorpay.on("payment.failed", (response) => {
-    console.error("Payment failed:", response.error);
-    alert(
-      response.error?.description || "Payment failed."
-    );
-  });
-
-  razorpay.open();
-
-      }
-      } catch (error) {
-        console.log(error);
-      }
-  }
+};
 
   if (
   Error ===

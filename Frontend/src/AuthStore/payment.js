@@ -26,27 +26,27 @@ export const paymentAuthStore = create((set)=>({
       });
         }
         },
-        verifyPayment: async (paymentData) => {
-  set({ isLoading: true, error: null });
+//         verifyPayment: async (paymentData) => {
+//   set({ isLoading: true, error: null });
 
-  try {
-    const res = await axios.post(
-      `${API_URL}/payment-verify`,
-      paymentData
-    );
+//   try {
+//     const res = await axios.post(
+//       `${API_URL}/payment-verify`,
+//       paymentData
+//     );
 
-    set({ isLoading: false, error: null });
+//     set({ isLoading: false, error: null });
 
-    return res.data;
-  } catch (error) {
-    set({
-      isLoading: false,
-      error:
-        error.response?.data?.message ||
-        "Payment verification failed",
-    });
+//     return res.data;
+//   } catch (error) {
+//     set({
+//       isLoading: false,
+//       error:
+//         error.response?.data?.message ||
+//         "Payment verification failed",
+//     });
 
-    return null;
-  }
-},
+//     return null;
+//   }
+// },
 }))

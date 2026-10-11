@@ -115,4 +115,103 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-module.exports = { verifyPayment };
+const razorpayWebhook = async (req, res) => {
+  try {
+    
+    const signature = req.headers["x-razorpay-signature"];
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    if (!signature || !secret || !req.rawBody) {
+      return res.status(400).send("Missing webhook data");
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(req.rawBody)
+      .digest("hex");
+
+    const received = Buffer.from(signature, "hex");
+    const expected = Buffer.from(expectedSignature, "hex");
+
+    if (
+      received.length !== expected.length ||
+      !crypto.timingSafeEqual(received, expected)
+    ) {
+      return res.status(400).send("Invalid webhook signature");
+    }
+    const event = req.body.event;
+    const paymentEntity = req.body.payload?.payment?.entity;
+
+    if (
+      event !== "payment.captured" &&
+      event !== "payment.failed"
+    ) {
+      return res.status(200).json({ success: true });
+    }
+
+    if (!paymentEntity) {
+      return res.status(400).send("Invalid payment payload");
+    }
+
+    const payment = await Payment.findOne({
+      razorpayOrderId: paymentEntity.order_id,
+    });
+
+    if (!payment) {
+      return res.status(404).send("Payment order not found");
+    }
+
+    if (event === "payment.failed") {
+      if (payment.status !== "paid") {
+        payment.status = "failed";
+        await payment.save();
+      }
+      return res.status(200).json({ success: true });
+    }
+
+    if (
+      paymentEntity.status !== "captured" ||
+      paymentEntity.amount !== payment.amountPaise ||
+      paymentEntity.currency !== payment.currency
+    ) {
+      return res.status(400).send("Payment details mismatch");
+    }
+
+    if (payment.status === "paid" && payment.creditsApplied) {
+      return res.status(200).json({ success: true });
+    }
+
+    if (payment.status !== "created" || payment.creditsApplied) {
+      return res.status(200).json({ success: true });
+    }
+
+    const user = await userDetails.findById(payment.createdBy);
+
+    if (!user) {
+      return res.status(500).send("Payment user not found");
+    }
+
+    // 8. Update payment and credits
+    payment.status = "paid";
+    payment.razorpayPaymentId = paymentEntity.id;
+    payment.creditsApplied = true;
+    payment.paidAt = new Date();
+
+    user.credits += payment.creditsGranted;
+
+    await payment.save();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Webhook processed successfully",
+    });
+  } catch (error) {
+    console.error("Razorpay webhook error:", error);
+    return res.status(500).send("Webhook processing failed");
+  }
+};
+
+module.exports = { verifyPayment, razorpayWebhook };
+
+module.exports = { verifyPayment,razorpayWebhook };
