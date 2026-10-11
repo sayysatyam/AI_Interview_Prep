@@ -9,7 +9,7 @@ const path = require("path");
 const { connectRedis } = require("./config/redis");
 require("dotenv").config();
 const port = process.env.PORT || 4000;
-
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
