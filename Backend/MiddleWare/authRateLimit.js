@@ -3,8 +3,8 @@ const rateLimit = require("express-rate-limit");
 
 // Login and signup protection
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  limit: 10,
+  windowMs: 30 * 60 * 1000, 
+  limit: 5,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -49,9 +49,21 @@ const passwordResetLimiter = rateLimit({
   },
 });
 
+const codegenerateLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, 
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many  requests. Try again later.",
+  },
+});
+
 module.exports = {
   authLimiter,
   verifyOtpLimiter,
   resendOtpLimiter,
   passwordResetLimiter,
+  codegenerateLimiter
 };

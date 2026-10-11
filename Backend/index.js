@@ -2,6 +2,7 @@ const express = require("express");
 const { connectMongoDb } = require("./connection");
 const cookieParser = require("cookie-parser");
 const authRouter = require("./router/user");
+const paymentRouter = require("./router/paymentRouter/paymentRouter");
 const cors = require("cors");
 const app = express();
 const path = require("path");
@@ -23,6 +24,7 @@ connectMongoDb(process.env.MONGO_URL);
 connectRedis();
 
 app.use("/auth",authRouter);
+app.use("/auth",paymentRouter);
 
 if (process.env.NODE_ENV === "production") {
   const distPath = path.join(process.cwd(), "Frontend", "dist");

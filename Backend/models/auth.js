@@ -56,8 +56,9 @@ avatar: {
   type: Date,
 },
 credits : {
-  type:String,
-  default:100
+  type:Number,
+  default:100,
+  min:0,
 }
 },{timestamps:true});
 

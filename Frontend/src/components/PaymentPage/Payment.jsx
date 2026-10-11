@@ -11,57 +11,106 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { PLANS } from "../../config/plan";
+import { paymentAuthStore } from "../../AuthStore/payment";
+import { loadRazorpay } from "../../utils/razorpay";
 
 const Payment = () => {
+  const {createPayment,isLoading,error,verifyPayment} = paymentAuthStore();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState("Plus");
-
-  const plans = [
-    {
-      label: "Go",
-      price: 299,
-      description: "For everyday conversations",
-      icon: Zap,
-      features: [
-        "Expanded chat access",
-        "More messages and uploads",
-        "Access to useful AI tools",
-        "Everyday productivity",
-      ],
-    },
-    {
-      label: "Plus",
-      price: 1999,
-      description: "For serious learners and creators",
-      icon: Sparkles,
-      features: [
-        "Everything in Go",
-        "Higher usage limits",
-        "Advanced AI capabilities",
-        "More room for complex tasks",
-        "Enhanced productivity tools",
-      ],
-      popular: true,
-    },
-    {
-      label: "Pro",
-      price: 10699,
-      description: "For intensive professional work",
-      icon: Crown,
-      features: [
-        "Everything in Plus",
-        "Higher usage allowances",
-        "Advanced features",
-        "Complex project support",
-        "Demanding workflow support",
-      ],
-    },
-  ];
+const [Error, setError] = useState(null);
+    const plans = PLANS;
 
   const activePlan = plans.find(
     (plan) => plan.label === selectedPlan
   );
 
+  const handlePayment = async()=>{
+     if (!activePlan || isLoading) return;
+
+       const loaded = await loadRazorpay();
+
+  if (!loaded) {
+    alert("Unable to load Razorpay Checkout.");
+    return;
+  }
+      try {
+        const order = await createPayment(activePlan.code);
+        setError(error);
+        if(!order) return;
+        if(order){
+         const options = {
+    key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+
+    amount: order.amountPaise,
+    currency: order.currency,
+    name: "InterviewPrep",
+    description: `${order.planName} credit pack`,
+    order_id: order.razorpayOrderId,
+
+    handler: async(response) => {
+     const result = await verifyPayment({
+    razorpay_payment_id: response.razorpay_payment_id,
+    razorpay_order_id: response.razorpay_order_id,
+    razorpay_signature: response.razorpay_signature,
+    mongoPaymentId: order._id,
+  });
+
+  if (result?.success) {
+    alert("Payment verified successfully!");
+  } else {
+    alert(
+      "Payment verification is pending. Please check your payment status."
+    );
+  }
+    },
+
+    theme: {
+      color: "#4F46E5",
+    },
+ };
+
+  const razorpay = new window.Razorpay(options);
+  razorpay.on("payment.failed", (response) => {
+    console.error("Payment failed:", response.error);
+    alert(
+      response.error?.description || "Payment failed."
+    );
+  });
+
+  razorpay.open();
+  
+  console.log(order);
+      }
+      } catch (error) {
+        console.log(error);
+      }
+  }
+
+  if (
+  Error ===
+  "An active payment already Existing...wait for 5 min or completed that"
+) {
+  return (
+    <div className="fixed inset-0 z-50 bg-amber-500/20 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white shadow-xl rounded-2xl p-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-amber-600 mb-3">
+          Payment Already in Progress
+        </h2>
+
+        <p className="text-gray-700">{Error}</p>
+
+        <button
+          onClick={() => setError(null)}
+          className="px-4 py-2 bg-black text-white rounded-2xl mt-3 cursor-pointer"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="min-h-screen bg-[#F0EBE3] text-[#292821]">
       {/* Header */}
@@ -224,16 +273,17 @@ const Payment = () => {
           </div>
 
           <button
+          disabled={isLoading}
             onClick={() => {
-              console.log("Selected plan:", activePlan.label);
+              handlePayment();
             }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-semibold text-white transition hover:bg-indigo-700"
+            className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-30"
           >
             Continue to payment
             <ArrowRight size={17} />
           </button>
         </section>
-
+              
         {/* Footer */}
         <footer className="mt-8 flex flex-col items-center justify-center gap-3 text-center text-xs text-[#898276] sm:flex-row sm:gap-6">
           <span className="flex items-center gap-2">
@@ -248,3 +298,5 @@ const Payment = () => {
 };
 
 export default Payment;
+
+//An active payment already Existing...wait for 5 min or completed that

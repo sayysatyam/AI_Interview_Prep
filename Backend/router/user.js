@@ -10,7 +10,8 @@ const { codeANALYSISAI, codeHistory } = require('../controllers/codeAnalysisAI')
 const {authLimiter,
   verifyOtpLimiter,
   resendOtpLimiter,
-  passwordResetLimiter} =  require("../MiddleWare/authRateLimit");
+  passwordResetLimiter,
+  codegenerateLimiter} =  require("../MiddleWare/authRateLimit");
 const route = express.Router();
 
 route.post("/signup",authLimiter,signup);
@@ -29,7 +30,7 @@ route.post("/submit-answer" , verifyToken ,submitAnswer );
 route.post("/calculate",verifyToken , calculate);
 route.get("/getHistory",verifyToken,getHistory);
 route.get("/historyStats/:hisId",verifyToken,getParticularHistory);
-route.post("/code",verifyToken,codeQuesGenerator);
+route.post("/code",verifyToken,codegenerateLimiter,codeQuesGenerator);
 route.get("/startCoding/:id",verifyToken,codeQuesDetail);
 route.post("/submitCode",verifyToken,submitCode);
 route.get("/getCodeHistory",verifyToken,getCodingHistory);
