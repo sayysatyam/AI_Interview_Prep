@@ -11,7 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const Signup = () => {
     const navigate = useNavigate();
-  const { googleLogin, isAuthenticated, user, Logingerror, isLoading, clearError,signup } = userAuthStore();
+  const { googleLogin, isAuthenticated, user, isLoading, clearError,signup,signupError } = userAuthStore();
         const [Name, setName] = useState("");
         const [Email, setEmail] = useState("");
         const [Password, setPassword] = useState("");
@@ -167,7 +167,9 @@ useEffect(() => {
                     />
                 </div>
             </div>
-         
+            {signupError && (
+              <div className='flex items-center justify-center text-red-500 text-nowrap font-normal'>{signupError}</div>
+            )}
           <motion.button
             disabled={isLoading}
             whileHover={{ y: -2, scale: 1.02 }}

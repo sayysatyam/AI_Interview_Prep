@@ -16,8 +16,12 @@ const ResetPassword = () => {
   const [localError, setlocalError] = useState("");
   const { token } = useParams();
   const navigate = useNavigate();
-  const { resetpassword, error, isLoading, verifyresettoken, verifyLoading } =
+  const { resetpassword, error, isLoading, verifyresettoken, verifyLoading,clearError } =
     userAuthStore();
+
+    useEffect(()=>{
+      clearError();
+    },[]);
 
   useEffect(() => {
     let mounted = true;

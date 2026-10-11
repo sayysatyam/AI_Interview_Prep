@@ -27,7 +27,7 @@ export const userAuthStore = create((set)=>({
                     return true;
             }
             catch(error){
-                set({signupError:error.response.data.msg|| "User Signing Up", isLoading:false,success:false,isSingup:false});
+                set({signupError:error.response.data.msg|| error.response.data.message|| "Something Went Wrong", isLoading:false,success:false,isSingup:false});
                 throw error;
             }
     },
